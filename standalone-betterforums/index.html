@@ -1061,16 +1061,28 @@ function formatMarkdown(text) {
     if (!text) return '';
     let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-    // Handle Markdown Images: ![alt](url)
-    s = s.replace(/!\[(.*?)\]\((https?:\/\/[^\s)]+)\)/gi, (match, alt, url) => {
-        return `<div style="margin:8px 0;"><img src="${url}" alt="${alt}" referrerpolicy="no-referrer" class="md-image" style="max-height:380px; max-width:100%; border-radius:8px; border:1px solid #334155; object-contain; cursor:pointer;" onclick="zoomImage('${url}')" onerror="this.onerror=null;this.parentElement.innerHTML='<span style=\\'font-size:11px; color:#f87171; font-style:italic;\\'>[Image load error: ${alt}]</span>';"></div>`;
+    // Handle BBCode 2X and prefix 2X
+    s = s.replace(/\[2x\]([\s\S]*?)\[\/2x\]/gi, '<span class="text-2x" style="font-size:1.35em; font-weight:700; color:#f8fafc;">$1</span>');
+    s = s.replace(/\b2X\s+(.*?)(?=\n|$)/gi, '<div class="text-2x">$1</div>');
+
+    // Handle standard BBCode formatting
+    s = s.replace(/\[b\]([\s\S]*?)\[\/b\]/gi, '<strong>$1</strong>');
+    s = s.replace(/\[i\]([\s\S]*?)\[\/i\]/gi, '<em>$1</em>');
+    s = s.replace(/\[u\]([\s\S]*?)\[\/u\]/gi, '<u>$1</u>');
+    s = s.replace(/\[s\]([\s\S]*?)\[\/s\]/gi, '<del>$1</del>');
+    s = s.replace(/\[url=(https?:\/\/[^\s\]]+)\]([\s\S]*?)\[\/url\]/gi, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:#38bdf8;">$2</a>');
+    s = s.replace(/\[img\](https?:\/\/[^\s\]]+)\[\/img\]/gi, '<div style="margin:8px 0;"><img src="$1" style="max-height:380px; max-width:100%; border-radius:8px; border:1px solid #334155; object-fit:contain; cursor:pointer;" onclick="zoomImage(\'$1\')"></div>');
+
+    // Handle Markdown Images with valid URLs: ![alt](url)
+    s = s.replace(/!\[(.*?)\]\((https?:\/\/[^\s)]+|data:image\/[^\s)]+)\)/gi, (match, alt, url) => {
+        return `<div style="margin:8px 0;"><img src="${url}" alt="${alt}" referrerpolicy="no-referrer" class="md-image" style="max-height:380px; max-width:100%; border-radius:8px; border:1px solid #334155; object-fit:contain; cursor:pointer;" onclick="zoomImage('${url}')" onerror="this.onerror=null;this.parentElement.innerHTML='<span style=\\'font-size:11px; color:#f87171; font-style:italic;\\'>[Image load error: ${alt}]</span>';"></div>`;
     });
+
+    // Strip any lingering placeholder markdown image syntax (like ![Image Description](text)) so bracketed text NEVER leaks into UI
+    s = s.replace(/!\[(.*?)\]\([^)]*\)/gi, '');
 
     // Handle Standard Links: [text](url)
     s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#38bdf8;">$1</a>');
-
-    // Handle 2X Text
-    s = s.replace(/\b2X\s+(.*?)(?=\n|$)/gi, '<div class="text-2x">$1</div>');
 
     // Headers
     s = s.replace(/^### (.*$)/gim, '<h3>$1</h3>');
@@ -1122,9 +1134,13 @@ async function loadFeed() {
             const downClass = p.user_vote === -1 ? 'downvoted' : '';
 
             let imageHtml = '';
-            if (p.image_url) {
-                imageHtml = `<div style="margin-top:8px;"><img src="${p.image_url}" style="max-height:300px; max-width:100%; border-radius:6px; object-fit:contain; border:1px solid #1e293b; cursor:pointer;" onclick="zoomImage('${p.image_url}')" loading="lazy" referrerpolicy="no-referrer"></div>`;
+            const validImg = (p.image_url && p.image_url !== 'null' && p.image_url !== 'undefined' && p.image_url.trim() !== '') ? p.image_url.trim() : null;
+            if (validImg) {
+                imageHtml = `<div style="margin-top:8px;"><img src="${validImg}" style="max-height:300px; max-width:100%; border-radius:6px; object-fit:contain; border:1px solid #1e293b; cursor:pointer;" onclick="zoomImage('${validImg}')" loading="lazy" referrerpolicy="no-referrer"></div>`;
             }
+
+            const authorName = (p.username && p.username !== 'null') ? p.username : 'deleted_user';
+            const subName = (p.sub_name && p.sub_name !== 'null') ? p.sub_name : 'general';
 
             return `
                 <div class="post-row ${pinnedClass}" id="post-card-${p.id}">
@@ -1136,9 +1152,9 @@ async function loadFeed() {
                     <div class="post-main">
                         <div class="post-meta">
                             ${pinIcon}
-                            <a href="#" onclick="selectSub('${p.sub_name}'); return false;" class="post-sub-link">r/${p.sub_name}</a>
+                            <a href="#" onclick="selectSub('${subName}'); return false;" class="post-sub-link">r/${subName}</a>
                             <span>&bull;</span>
-                            <span>Posted by <a href="#" onclick="openUserAction(${p.user_id}, '${p.username}'); return false;" class="post-author">u/${p.username}</a></span>
+                            <span>Posted by <a href="#" onclick="openUserAction(${p.user_id || 0}, '${authorName}'); return false;" class="post-author">u/${authorName}</a></span>
                             <span>${timeAgo}</span>
                         </div>
                         <h3 class="post-title" onclick="openPostDetail(${p.id})">${flair}${p.title}</h3>
@@ -1173,14 +1189,17 @@ async function openPostDetail(pid) {
     if (res && res.ok && res.post) {
         const p = res.post;
         const flair = p.flair ? `<span class="flair-badge">${p.flair}</span>` : '';
-        let img = p.image_url ? `<div style="margin:12px 0;"><img src="${p.image_url}" style="max-width:100%; border-radius:8px; border:1px solid #334155; cursor:pointer;" onclick="zoomImage('${p.image_url}')"></div>` : '';
+        const validDetailImg = (p.image_url && p.image_url !== 'null' && p.image_url !== 'undefined' && p.image_url.trim() !== '') ? p.image_url.trim() : null;
+        let img = validDetailImg ? `<div style="margin:12px 0;"><img src="${validDetailImg}" style="max-width:100%; border-radius:8px; border:1px solid #334155; cursor:pointer;" onclick="zoomImage('${validDetailImg}')"></div>` : '';
+        const authorName = (p.username && p.username !== 'null') ? p.username : 'deleted_user';
+        const subName = (p.sub_name && p.sub_name !== 'null') ? p.sub_name : 'general';
 
         pBox.innerHTML = `
             <div style="background:#0f172a; border:1px solid #1e293b; border-radius:8px; padding:16px;">
                 <div class="post-meta" style="margin-bottom:8px;">
-                    <a href="#" onclick="selectSub('${p.sub_name}'); return false;" class="post-sub-link">r/${p.sub_name}</a>
+                    <a href="#" onclick="selectSub('${subName}'); return false;" class="post-sub-link">r/${subName}</a>
                     <span>&bull;</span>
-                    <span>Posted by <strong style="color:${p.name_color || '#38bdf8'};">u/${p.username}</strong></span>
+                    <span>Posted by <strong style="color:${p.name_color || '#38bdf8'};">u/${authorName}</strong></span>
                     <span>${formatTimeAgo(p.created_at)}</span>
                 </div>
                 <h1 style="font-size:18px; font-weight:bold; color:#f8fafc; margin-bottom:12px; line-height:1.3;">${flair}${p.title}</h1>

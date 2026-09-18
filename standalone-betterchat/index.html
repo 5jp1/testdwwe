@@ -1064,8 +1064,27 @@ function switchChannel(name) {
 function formatMarkdown(text) {
   if (!text) return '';
   let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  // 2X text
+
+  // BBCode 2X and prefix 2X
+  s = s.replace(/\[2x\]([\s\S]*?)\[\/2x\]/gi, '<span class="text-2x" style="font-size:1.35em; font-weight:700; color:#f8fafc;">$1</span>');
   s = s.replace(/\b2X\s+(.*?)(?=\n|$)/gi, '<div class="text-2x">$1</div>');
+
+  // BBCode
+  s = s.replace(/\[b\]([\s\S]*?)\[\/b\]/gi, '<strong>$1</strong>');
+  s = s.replace(/\[i\]([\s\S]*?)\[\/i\]/gi, '<em>$1</em>');
+  s = s.replace(/\[u\]([\s\S]*?)\[\/u\]/gi, '<u>$1</u>');
+  s = s.replace(/\[s\]([\s\S]*?)\[\/s\]/gi, '<del>$1</del>');
+  s = s.replace(/\[url=(https?:\/\/[^\s\]]+)\]([\s\S]*?)\[\/url\]/gi, '<a href="$1" target="_blank" class="text-blue-400 hover:underline">$2</a>');
+  s = s.replace(/\[img\](https?:\/\/[^\s\]]+)\[\/img\]/gi, '<div class="my-2 max-w-sm rounded-lg overflow-hidden border border-slate-800 cursor-pointer" onclick="zoomImage(\'$1\')"><img src="$1" class="max-h-60 w-auto rounded object-cover"></div>');
+
+  // Markdown images with valid URL
+  s = s.replace(/!\[(.*?)\]\((https?:\/\/[^\s)]+|data:image\/[^\s)]+)\)/gi, (match, alt, url) => {
+    return `<div class="my-2 max-w-sm rounded-lg overflow-hidden border border-slate-800 cursor-pointer" onclick="zoomImage('${url}')"><img src="${url}" alt="${alt}" class="max-h-60 w-auto rounded object-cover" onerror="this.parentElement.style.display='none';"></div>`;
+  });
+
+  // Clean up any placeholder markdown image brackets
+  s = s.replace(/!\[(.*?)\]\([^)]*\)/gi, '');
+
   // Headers
   s = s.replace(/^### (.*$)/gim, '<h3>$1</h3>');
   s = s.replace(/^## (.*$)/gim, '<h2>$1</h2>');
