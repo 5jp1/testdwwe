@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BetterChat (Standalone Port)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://unpkg.com/twemoji@latest/dist/twemoji.min.js" crossorigin="anonymous"></script>
+<style>
+body { background-color: #0b1120; color: #f8fafc; font-family: ui-sans-serif, system-ui, -apple-system, sans-serif; overflow: hidden; height: 100vh; }
+.msg-row { content-visibility: auto; contain-intrinsic-size: auto 60px; }
+.gradient-text { background: linear-gradient(to right, #3b82f6, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0b1120; }
+::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #334155; }
+:root { --nav-w: 240px; --mem-w: 220px; }
+.app-grid { display: grid; grid-template-columns: var(--nav-w) 1fr var(--mem-w); grid-template-rows: 52px 1fr; height: 100dvh; overflow: hidden; transition: grid-template-columns 0.2s; }
+#app-header { grid-column: 1 / -1; grid-row: 1; }
+#sidebar { grid-column: 1; grid-row: 2; overflow-y: auto; background-color: #0f172a; z-index: 30; }
+#main { grid-column: 2; grid-row: 2; display: flex; flex-direction: column; overflow: hidden; position: relative; background: #0b1120; }
+#members { grid-column: 3; grid-row: 2; overflow-y: auto; background-color: #0f172a; z-index: 30; }
+#messages { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 2px; }
+@media(max-width: 768px) {
+  .app-grid { grid-template-columns: 0px 1fr 0px; }
+  #sidebar, #members { position: absolute; top: 52px; bottom: 0; width: 280px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+  #sidebar { left: -280px; transition: left 0.25s ease-in-out; }
+  #sidebar.open { left: 0; }
+  #members { right: -280px; transition: right 0.25s ease-in-out; }
+  #members.open { right: 0; }
+}
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,.75); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.modal-bg.open { opacity: 1; pointer-events: all; }
+.modal-box { background: #0f172a; border: 1px solid #1e293b; border-radius: 16px; padding: 24px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; transform: scale(.95); transition: transform .2s; box-shadow: 0 25px 50px -12px rgba(0,0,0,.8); }
+.modal-bg.open .modal-box { transform: scale(1); }
+.modal-box.wide { max-width: 780px; }
+.msg-bubble { border-radius: 12px; }
+.msg-mention { background: rgba(59,130,246,.15); border-left: 2px solid #3b82f6; border-radius: 0 8px 8px 0; }
+.pinned-banner { background: rgba(234,179,8,.1); border-bottom: 1px solid rgba(234,179,8,.2); }
+.voice-wave { display: flex; align-items: center; gap: 2px; height: 28px; }
+.voice-bar { width: 3px; background: #3b82f6; border-radius: 2px; transition: height .1s; }
+.channel-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; color: #94a3b8; font-size: 13px; cursor: pointer; transition: all .15s; margin-bottom: 2px; user-select: none; }
+.channel-item:hover { background: #1e293b; color: #f8fafc; }
+.channel-item.active { background: #1e293b; color: #38bdf8; font-weight: 600; }
+.member-item { display: flex; align-items: center; gap: 10px; padding: 5px 8px; border-radius: 8px; cursor: pointer; transition: background .15s; }
+.member-item:hover { background: #1e293b; }
+.role-badge { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.switch-toggle { position: relative; display: inline-block; width: 44px; height: 24px; }
+.switch-toggle input { opacity: 0; width: 0; height: 0; }
+.switch-slider { position: absolute; cursor: pointer; inset: 0; background-color: #334155; transition: .3s; border-radius: 24px; }
+.switch-slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+input:checked + .switch-slider { background-color: #3b82f6; }
+input:checked + .switch-slider:before { transform: translateX(20px); }
+/* Wordle Tiles */
+.w-tile { width: 48px; height: 48px; border: 2px solid #334155; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold; text-transform: uppercase; border-radius: 6px; user-select: none; }
+.w-tile.correct { background: #15803d; border-color: #15803d; color: #fff; }
+.w-tile.present { background: #b45309; border-color: #b45309; color: #fff; }
+.w-tile.absent { background: #334155; border-color: #334155; color: #94a3b8; }
+.w-key { background: #1e293b; border: 1px solid #334155; border-radius: 4px; color: #f8fafc; font-weight: 600; font-size: 13px; padding: 10px 6px; min-width: 32px; text-align: center; cursor: pointer; user-select: none; }
+.w-key:hover { background: #334155; }
+.w-key.correct { background: #15803d; border-color: #15803d; }
+.w-key.present { background: #b45309; border-color: #b45309; }
+.w-key.absent { background: #0f172a; color: #64748b; border-color: #1e293b; }
+/* Markdown styles */
+.msg-body h1 { font-size: 1.3em; font-weight: bold; margin: 4px 0; }
+.msg-body h2 { font-size: 1.15em; font-weight: bold; margin: 3px 0; }
+.msg-body h3 { font-size: 1.05em; font-weight: bold; margin: 2px 0; }
+.msg-body code { background: #090d16; border: 1px solid #1e293b; padding: 1px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; }
+.msg-body pre { background: #090d16; border: 1px solid #1e293b; padding: 8px 12px; border-radius: 6px; font-family: monospace; overflow-x: auto; margin: 6px 0; }
+.msg-body blockquote { border-left: 3px solid #3b82f6; padding-left: 10px; color: #94a3b8; margin: 4px 0; }
+.msg-body .text-2x { font-size: 1.8em; font-weight: 800; line-height: 1.2; }
+img.emoji { height: 1.25em; width: 1.25em; margin: 0 .05em 0 .1em; vertical-align: -0.2em; display: inline; }
+</style>
+</head>
+<body>
+
+<div class="app-grid">
+  <!-- ════ APP HEADER ═══════════════════════════════════════════════════════ -->
+  <header id="app-header" class="bg-slate-900 border-b border-slate-800 flex items-center justify-between px-3 md:px-4 z-40">
+    <div class="flex items-center gap-3">
+      <!-- Mobile toggles -->
+      <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800">
+        <i class="fa-solid fa-bars text-base"></i>
+      </button>
+
+      <!-- Logo & Channel Info -->
+      <div class="flex items-center gap-2">
+        <span class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-black text-white text-base shadow-lg shadow-blue-500/30">
+          <i class="fa-solid fa-comments"></i>
+        </span>
+        <div class="hidden sm:block">
+          <div class="flex items-center gap-1.5">
+            <span class="font-bold text-sm text-slate-100">BetterChat</span>
+            <span class="text-[10px] uppercase tracking-wider bg-blue-900/60 text-blue-300 font-bold px-1.5 py-0.5 rounded border border-blue-700/50">PORT</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-tight">Decoupled Standalone Client</p>
+        </div>
+      </div>
+
+      <div class="h-5 w-px bg-slate-800 mx-1 hidden sm:block"></div>
+
+      <!-- Active Channel Display -->
+      <div class="flex items-center gap-2">
+        <span class="text-slate-500 font-bold" id="header-hash">#</span>
+        <span class="font-bold text-sm text-slate-200" id="header-channel-name">general</span>
+        <span class="text-xs text-slate-500 hidden lg:inline max-w-xs truncate" id="header-topic">General discussions</span>
+      </div>
+    </div>
+
+    <!-- Header Actions & ADVANCED SERVER BUTTON -->
+    <div class="flex items-center gap-2">
+      <!-- Advanced Server Status Button -->
+      <button id="btn-server" onclick="openModal('server-modal')" class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 hover:border-slate-600 text-slate-300 px-2.5 py-1 rounded-full text-xs font-medium transition-all shadow-sm">
+        <span id="server-ping-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="server-ping-text" class="font-mono text-[11px] text-emerald-400 font-semibold">Server: --ms</span>
+        <i class="fa-solid fa-sliders text-[10px] text-slate-500 ml-0.5"></i>
+      </button>
+
+      <!-- Wordle Button -->
+      <button onclick="openWordleModal()" title="Play Daily Wordle" class="text-slate-400 hover:text-yellow-400 p-1.5 rounded-lg hover:bg-slate-800 transition-colors">
+        <i class="fa-solid fa-cubes text-sm"></i>
+      </button>
+
+      <!-- Friends Button -->
+      <button onclick="openModal('friend-modal'); loadFriends();" title="Friends & DMs" class="relative text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors">
+        <i class="fa-solid fa-user-group text-sm"></i>
+        <span id="pending-friends-badge" class="hidden absolute top-1 right-1 w-2 h-2 rounded-full bg-blue-500"></span>
+      </button>
+
+      <!-- Inbox Button -->
+      <button onclick="openModal('inbox-modal'); loadInbox();" title="Notifications & Inbox" class="relative text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors">
+        <i class="fa-solid fa-bell text-sm"></i>
+        <span id="unread-inbox-badge" class="hidden absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500"></span>
+      </button>
+
+      <!-- Admin Panel Button (if staff) -->
+      <button id="btn-admin-panel" onclick="openAdminModal()" title="Admin Control Panel" class="hidden bg-red-950/40 text-red-400 hover:text-red-200 border border-red-800/40 px-2 py-1 rounded-lg text-xs font-semibold">
+        <i class="fa-solid fa-shield-halved"></i> Staff
+      </button>
+
+      <!-- User Profile / Auth Button -->
+      <div id="user-header-area" class="flex items-center gap-2 pl-1 border-l border-slate-800">
+        <!-- Will be populated dynamically -->
+      </div>
+
+      <!-- Mobile Members Toggle -->
+      <button onclick="toggleMembers()" class="md:hidden text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800">
+        <i class="fa-solid fa-users text-base"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ════ SIDEBAR (CHANNELS & DMS) ═════════════════════════════════════════ -->
+  <aside id="sidebar" class="border-r border-slate-800 flex flex-col p-3">
+    <!-- Channel Section -->
+    <div class="flex items-center justify-between px-2 mb-1.5">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Text Channels</span>
+      <button id="btn-add-channel" onclick="openModal('create-channel-modal')" class="hidden text-slate-500 hover:text-white text-xs p-1" title="Create Channel">
+        <i class="fa-solid fa-plus"></i>
+      </button>
+    </div>
+    <div id="channels-list" class="space-y-0.5 mb-5">
+      <!-- Injected channels -->
+    </div>
+
+    <!-- Direct Messages Section -->
+    <div class="flex items-center justify-between px-2 mb-1.5">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Direct Messages</span>
+      <button onclick="openModal('friend-modal'); loadFriends();" class="text-slate-500 hover:text-white text-xs p-1" title="New DM">
+        <i class="fa-solid fa-plus"></i>
+      </button>
+    </div>
+    <div id="dms-list" class="space-y-0.5 flex-1 overflow-y-auto">
+      <!-- Injected DMs -->
+    </div>
+
+    <!-- App Bottom Bar (Quick Status) -->
+    <div class="mt-auto pt-3 border-t border-slate-800 flex items-center justify-between px-2 text-xs text-slate-500">
+      <span id="site-hits-lbl"><i class="fa-solid fa-eye text-[10px] mr-1"></i> Hits: <strong id="site-hits" class="text-slate-400">...</strong></span>
+      <a href="../standalone-betterforums/index.html" class="text-blue-400 hover:underline flex items-center gap-1">
+        <i class="fa-solid fa-square-rss"></i> Forums
+      </a>
+    </div>
+  </aside>
+
+  <!-- ════ MAIN CHAT VIEW ═══════════════════════════════════════════════════ -->
+  <main id="main">
+    <!-- Pinned Message Banner -->
+    <div id="pinned-banner" class="hidden pinned-banner px-4 py-2 flex items-center justify-between z-20 text-xs">
+      <div class="flex items-center gap-2 truncate">
+        <i class="fa-solid fa-thumbtack text-amber-400"></i>
+        <span class="text-amber-300 font-semibold">Pinned:</span>
+        <span id="pinned-text" class="text-slate-300 truncate">No pinned message</span>
+      </div>
+      <button onclick="unpinMessage()" id="btn-unpin" class="hidden text-slate-500 hover:text-amber-400 ml-2">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <!-- Messages Container -->
+    <div id="messages">
+      <div class="flex-1 flex flex-col items-center justify-center text-slate-500 py-12">
+        <i class="fa-solid fa-spinner fa-spin text-2xl mb-3 text-blue-500"></i>
+        <p class="text-xs">Connecting to BetterChat server...</p>
+      </div>
+    </div>
+
+    <!-- Typing Indicator -->
+    <div id="typing-bar" class="h-6 px-5 text-[11px] text-slate-500 flex items-center gap-1 italic">
+      <span id="typing-text"></span>
+    </div>
+
+    <!-- Bottom Chat Input Bar -->
+    <div class="p-3 md:p-4 bg-slate-900 border-t border-slate-800 z-20">
+      <!-- Media Actions Toolbar -->
+      <div class="flex items-center gap-2 mb-2">
+        <!-- Voice Record Button -->
+        <button id="voice-btn" onclick="toggleVoiceRecording()" title="Record Voice Message"
+          class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-400 hover:text-white px-2.5 py-1 rounded-lg text-xs font-medium transition-all">
+          <i class="fa-solid fa-microphone"></i> <span id="voice-lbl">Voice</span>
+        </button>
+
+        <!-- File Upload Button -->
+        <button onclick="document.getElementById('file-inp').click()" title="Send File Attachment"
+          class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-400 hover:text-white px-2.5 py-1 rounded-lg text-xs font-medium transition-all">
+          <i class="fa-solid fa-paperclip"></i> File
+        </button>
+        <input type="file" id="file-inp" class="hidden" onchange="sendFile(this)">
+
+        <!-- Iframe Embed Button -->
+        <button id="btn-embed-iframe" onclick="openModal('iframe-modal')" title="Embed Web Iframe"
+          class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-400 hover:text-white px-2.5 py-1 rounded-lg text-xs font-medium transition-all">
+          <i class="fa-solid fa-globe"></i> Embed
+        </button>
+
+        <!-- Bug Report Button -->
+        <button onclick="openModal('bug-modal')" title="Submit Bug Report or Feedback"
+          class="flex items-center gap-1.5 bg-slate-800 hover:bg-slate-750 border border-slate-700 text-slate-400 hover:text-amber-400 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ml-auto">
+          <i class="fa-solid fa-bug"></i> Feedback
+        </button>
+
+        <div id="voice-timer" class="text-xs text-red-400 font-mono hidden ml-1">● <span id="voice-time">0:00</span></div>
+      </div>
+
+      <!-- Main Input Field -->
+      <div class="flex items-end gap-2 bg-slate-800/80 rounded-xl px-3 py-2 border border-slate-700 focus-within:border-blue-500 transition-colors">
+        <button onclick="document.getElementById('img-inp').click()" title="Attach Image" class="text-slate-400 hover:text-blue-400 p-1.5 self-end">
+          <i class="fa-solid fa-image text-lg"></i>
+        </button>
+        <input type="file" id="img-inp" accept="image/*" class="hidden" onchange="sendImage(this)">
+
+        <textarea id="msg-input" rows="1" placeholder="Message #general..." onkeydown="handleKey(event)" oninput="autoGrow(this)" class="bg-transparent border-none outline-none flex-1 text-slate-200 placeholder-slate-500 text-sm resize-none max-h-32 py-1"></textarea>
+
+        <!-- Emoji Bar Picker Trigger -->
+        <button onclick="insertEmoji('😊')" class="text-slate-400 hover:text-yellow-400 p-1.5 self-end" title="Quick Emoji">
+          <i class="fa-regular fa-face-smile text-lg"></i>
+        </button>
+
+        <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-3 py-2 self-end transition-all shadow-md shadow-blue-600/30">
+          <i class="fa-solid fa-paper-plane text-sm"></i>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ════ MEMBERS SIDEBAR ══════════════════════════════════════════════════ -->
+  <aside id="members" class="border-l border-slate-800 flex flex-col p-3">
+    <div class="px-2 mb-2 flex items-center justify-between">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Members</span>
+      <span id="members-count" class="text-[11px] font-mono text-slate-400">0</span>
+    </div>
+    <div id="members-list" class="space-y-1 flex-1 overflow-y-auto">
+      <!-- Injected members -->
+    </div>
+  </aside>
+</div>
+
+<!-- ════ IMAGE ZOOM MODAL ════════════════════════════════════════════════════ -->
+<div id="img-zoom" onclick="this.style.display='none'" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:3000;cursor:zoom-out;align-items:center;justify-content:center;">
+  <img id="img-zoom-src" src="" class="max-w-[90vw] max-h-[90vh] rounded-xl object-contain shadow-2xl">
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- ════ ALL MODALS FROM BETTERCHAT ══════════════════════════════════════════ -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+
+<!-- 1. ADVANCED SERVER MODAL -->
+<div class="modal-bg" id="server-modal">
+  <div class="modal-box">
+    <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+      <div class="flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-sm border border-emerald-500/30">
+          <i class="fa-solid fa-server"></i>
+        </span>
+        <div>
+          <h3 class="font-bold text-sm text-slate-100">Advanced Server Connection</h3>
+          <p class="text-[11px] text-slate-500">Configure remote API endpoints & diagnostics</p>
+        </div>
+      </div>
+      <button onclick="closeModal('server-modal')" class="text-slate-500 hover:text-white">&times;</button>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Backend Server API Base URL</label>
+        <input type="text" id="cfg-server-url" placeholder="e.g. http://localhost:3000" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500 font-mono">
+        <p class="text-[11px] text-slate-500 mt-1">Directs calls to <code class="text-blue-400">/api.php</code>. Leave default for same-origin.</p>
+      </div>
+
+      <!-- Quick Preset Buttons -->
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1.5">Quick Presets</label>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="setServerPreset('origin')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-2.5 py-1.5 rounded border border-slate-700">
+            <i class="fa-solid fa-cloud text-blue-400 mr-1"></i> Current Origin (Default)
+          </button>
+          <button onclick="setServerPreset('localhost')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-2.5 py-1.5 rounded border border-slate-700">
+            <i class="fa-solid fa-laptop-code text-amber-400 mr-1"></i> Localhost:3000
+          </button>
+          <button onclick="setServerPreset('relative')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-2.5 py-1.5 rounded border border-slate-700">
+            <i class="fa-solid fa-folder-tree text-emerald-400 mr-1"></i> Relative Path (..)
+          </button>
+        </div>
+      </div>
+
+      <!-- Real-Time Diagnostics Box -->
+      <div class="bg-slate-950 border border-slate-800 rounded-lg p-3">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold text-slate-300">Live Health Diagnostics</span>
+          <button onclick="pingServerTest()" class="text-xs text-blue-400 hover:underline flex items-center gap-1">
+            <i class="fa-solid fa-rotate"></i> Ping Test
+          </button>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="bg-slate-900 p-2 rounded border border-slate-800/80">
+            <span class="text-slate-500 block text-[10px] uppercase">Latency</span>
+            <span id="diag-latency" class="font-mono font-bold text-emerald-400">Checking...</span>
+          </div>
+          <div class="bg-slate-900 p-2 rounded border border-slate-800/80">
+            <span class="text-slate-500 block text-[10px] uppercase">Status</span>
+            <span id="diag-status" class="font-semibold text-slate-300">Checking...</span>
+          </div>
+          <div class="bg-slate-900 p-2 rounded border border-slate-800/80">
+            <span class="text-slate-500 block text-[10px] uppercase">Server Hits</span>
+            <span id="diag-hits" class="font-mono text-slate-300">-</span>
+          </div>
+          <div class="bg-slate-900 p-2 rounded border border-slate-800/80">
+            <span class="text-slate-500 block text-[10px] uppercase">Database</span>
+            <span id="diag-db" class="font-semibold text-emerald-400">Connected</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('server-modal')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs px-4 py-2 rounded-lg font-medium">Cancel</button>
+        <button onclick="saveServerConfig()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg font-semibold shadow-lg shadow-blue-600/30">Save & Reconnect</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. AUTH MODAL (LOGIN / REGISTER) -->
+<div class="modal-bg" id="auth-modal">
+  <div class="modal-box">
+    <div class="text-center mb-5">
+      <span class="inline-flex w-12 h-12 rounded-xl bg-blue-600 text-white items-center justify-center text-xl font-bold shadow-lg shadow-blue-600/30 mb-2">
+        <i class="fa-solid fa-comments"></i>
+      </span>
+      <h3 class="text-lg font-bold text-slate-100" id="auth-title">Welcome to BetterChat</h3>
+      <p class="text-xs text-slate-500">Sign in to sync your messages, profile, and roles</p>
+    </div>
+
+    <!-- Auth Tabs -->
+    <div class="flex bg-slate-900 rounded-lg p-1 mb-4 border border-slate-800">
+      <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 py-1.5 rounded-md text-xs font-semibold bg-blue-600 text-white">Sign In</button>
+      <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white">Register</button>
+    </div>
+
+    <form onsubmit="handleAuthSubmit(event)" class="space-y-3">
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Username</label>
+        <input type="text" id="auth-username" required placeholder="Choose a username" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500">
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Password</label>
+        <input type="password" id="auth-password" required placeholder="Enter password" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-blue-500">
+      </div>
+
+      <div id="auth-error" class="hidden text-xs text-red-400 bg-red-950/40 border border-red-800/50 p-2.5 rounded-lg"></div>
+
+      <button type="submit" id="auth-submit-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold py-2.5 rounded-lg transition-all shadow-lg shadow-blue-600/30">
+        Sign In
+      </button>
+
+      <div class="text-center pt-2">
+        <button type="button" onclick="continueAsGuest()" class="text-xs text-slate-400 hover:text-slate-200">
+          Continue as Guest (Read-Only)
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 3. PROFILE & SETTINGS MODAL -->
+<div class="modal-bg" id="profile-modal">
+  <div class="modal-box">
+    <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+      <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+        <i class="fa-solid fa-user-pen text-blue-400"></i> Profile & Preferences
+      </h3>
+      <button onclick="closeModal('profile-modal')" class="text-slate-500 hover:text-white">&times;</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex bg-slate-900 rounded-lg p-1 mb-4 border border-slate-800">
+      <button class="pf-tab flex-1 py-1.5 rounded-md text-xs font-semibold bg-blue-600 text-white" onclick="switchPfTab(this, 'pf-prof')">Profile</button>
+      <button class="pf-tab flex-1 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white" onclick="switchPfTab(this, 'pf-sec')">Password</button>
+      <button class="pf-tab flex-1 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white" onclick="switchPfTab(this, 'pf-layout')">Layout</button>
+    </div>
+
+    <!-- Profile Tab -->
+    <div id="pf-prof" class="pf-pane space-y-4">
+      <div class="flex flex-col items-center">
+        <div class="relative w-20 h-20 mb-2">
+          <div id="pf-avatar-box" onclick="document.getElementById('pf-av-input').click()" class="w-20 h-20 rounded-full bg-blue-600 border-2 border-slate-700 hover:border-blue-400 transition-all cursor-pointer overflow-hidden flex items-center justify-center text-xl font-bold text-white shadow-xl">
+            ?
+          </div>
+        </div>
+        <input type="file" id="pf-av-input" accept="image/*" class="hidden" onchange="uploadProfileAvatar(this)">
+        <span class="text-[11px] text-slate-500">Click avatar to change</span>
+      </div>
+
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Avatar Image URL (or GIF)</label>
+        <input type="text" id="pf-avatar-url" placeholder="https://example.com/avatar.gif" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 outline-none focus:border-blue-500">
+      </div>
+
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Display Name Color</label>
+        <div class="flex items-center gap-3">
+          <input type="color" id="pf-color-picker" value="#3b82f6" oninput="document.getElementById('pf-color-val').textContent=this.value" class="w-9 h-8 bg-slate-900 border border-slate-700 rounded cursor-pointer p-0.5">
+          <span id="pf-color-val" class="font-mono text-xs text-slate-300">#3b82f6</span>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Bio / Status</label>
+        <input type="text" id="pf-bio" placeholder="What are you up to?" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none focus:border-blue-500">
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="saveProfile()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg font-semibold">Save Profile</button>
+      </div>
+    </div>
+
+    <!-- Password Tab -->
+    <div id="pf-sec" class="pf-pane hidden space-y-3">
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Current Password</label>
+        <input type="password" id="pf-cur-pass" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">New Password</label>
+        <input type="password" id="pf-new-pass" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
+      </div>
+      <div class="flex justify-end pt-2">
+        <button onclick="changePassword()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg font-semibold">Update Password</button>
+      </div>
+    </div>
+
+    <!-- Layout Tab -->
+    <div id="pf-layout" class="pf-pane hidden space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Sidebar Width (<span id="lbl-nav-w">240</span>px)</label>
+        <input type="range" min="180" max="320" value="240" oninput="setNavWidth(this.value)" class="w-full">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Members Panel Width (<span id="lbl-mem-w">220</span>px)</label>
+        <input type="range" min="180" max="300" value="220" oninput="setMemWidth(this.value)" class="w-full">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 4. WORDLE MODAL -->
+<div class="modal-bg" id="wordle-modal">
+  <div class="modal-box wide">
+    <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+      <div class="flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-yellow-500/20 text-yellow-400 flex items-center justify-center text-sm border border-yellow-500/30">
+          <i class="fa-solid fa-cubes"></i>
+        </span>
+        <div>
+          <h3 class="font-bold text-sm text-slate-100">Daily Wordle Challenge</h3>
+          <p class="text-[11px] text-slate-500">Guess the 5-letter mystery word in 6 attempts</p>
+        </div>
+      </div>
+      <button onclick="closeModal('wordle-modal')" class="text-slate-500 hover:text-white">&times;</button>
+    </div>
+
+    <!-- Wordle Grid -->
+    <div id="wordle-grid" class="flex flex-col items-center gap-2 my-4">
+      <!-- 6 Rows of 5 tiles -->
+    </div>
+
+    <!-- Virtual Keyboard -->
+    <div id="wordle-keyboard" class="flex flex-col items-center gap-1.5 mt-4 max-w-md mx-auto">
+      <!-- Injected Keyboard -->
+    </div>
+
+    <div class="flex justify-between items-center mt-5 pt-3 border-t border-slate-800 text-xs">
+      <span id="wordle-streak" class="text-slate-400">Win Streak: <strong>0</strong></span>
+      <button onclick="shareWordleScore()" class="bg-yellow-600 hover:bg-yellow-500 text-black font-bold px-3 py-1.5 rounded-lg flex items-center gap-1">
+        <i class="fa-solid fa-share-nodes"></i> Share Result to Chat
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 5. FRIENDS MODAL -->
+<div class="modal-bg" id="friend-modal">
+  <div class="modal-box">
+    <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+      <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+        <i class="fa-solid fa-user-group text-blue-400"></i> Friends & Direct Messages
+      </h3>
+      <button onclick="closeModal('friend-modal')" class="text-slate-500 hover:text-white">&times;</button>
+    </div>
+
+    <!-- Add Friend Form -->
+    <div class="flex gap-2 mb-4">
+      <input type="text" id="add-friend-name" placeholder="Enter username..." class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 outline-none focus:border-blue-500">
+      <button onclick="sendFriendRequest()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-3 py-1.5 rounded-lg font-semibold">
+        Add Friend
+      </button>
+    </div>
+
+    <div class="text-[10px] uppercase font-bold text-slate-500 mb-2">My Friends</div>
+    <div id="friends-list-box" class="space-y-1.5 max-h-60 overflow-y-auto">
+      <p class="text-center text-slate-600 text-xs py-4">Loading friends...</p>
+    </div>
+  </div>
+</div>
+
+<!-- 6. INBOX / NOTIFICATIONS MODAL -->
+<div class="modal-bg" id="inbox-modal">
+  <div class="modal-box">
+    <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+      <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+        <i class="fa-solid fa-bell text-red-400"></i> Inbox & Notifications
+      </h3>
+      <button onclick="markInboxRead()" class="text-xs text-blue-400 hover:underline">Mark All Read</button>
+    </div>
+
+    <div id="inbox-list" class="space-y-2 max-h-72 overflow-y-auto">
+      <p class="text-center text-slate-600 text-xs py-4">No new notifications</p>
+    </div>
+  </div>
+</div>
+
+<!-- 7. EMBED IFRAME MODAL -->
+<div class="modal-bg" id="iframe-modal">
+  <div class="modal-box">
+    <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+      <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+        <i class="fa-solid fa-globe text-blue-400"></i> Embed Interactive Iframe
+      </h3>
+      <button onclick="closeModal('iframe-modal')" class="text-slate-500 hover:text-white">&times;</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Widget Title</label>
+        <input type="text" id="iframe-title" placeholder="e.g. Interactive Calculator" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none">
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Embed URL (HTTPS only)</label>
+        <input type="url" id="iframe-url" placeholder="https://example.com/widget" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none font-mono">
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="sendIframe()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg font-semibold">Post to Channel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 8. FEEDBACK / BUG MODAL -->
+<div class="modal-bg" id="bug-modal">
+  <div class="modal-box">
+    <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+      <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+        <i class="fa-solid fa-bug text-amber-400"></i> Submit Feedback or Bug Report
+      </h3>
+      <button onclick="closeModal('bug-modal')" class="text-slate-500 hover:text-white">&times;</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Category</label>
+        <select id="bug-category" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none">
+          <option value="Bug">Bug / Issue</option>
+          <option value="Feature">Feature Request</option>
+          <option value="Audio">Voice / Audio Issue</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Description</label>
+        <textarea id="bug-desc" rows="4" placeholder="Describe the issue or idea..." class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs text-slate-200 outline-none resize-none"></textarea>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="submitFeedback()" class="bg-amber-600 hover:bg-amber-500 text-white text-xs px-4 py-2 rounded-lg font-semibold">Submit Report</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 9. CREATE CHANNEL MODAL -->
+<div class="modal-bg" id="create-channel-modal">
+  <div class="modal-box">
+    <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+      <h3 class="font-bold text-sm text-slate-100">Create New Channel</h3>
+      <button onclick="closeModal('create-channel-modal')" class="text-slate-500 hover:text-white">&times;</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Channel Name</label>
+        <input type="text" id="new-channel-name" placeholder="e.g. gaming" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none">
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Topic / Description</label>
+        <input type="text" id="new-channel-topic" placeholder="Brief topic" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 outline-none">
+      </div>
+      <label class="flex items-center gap-2 text-xs text-slate-300">
+        <input type="checkbox" id="new-channel-announcement"> Announcement Only (Only staff can post)
+      </label>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="createChannel()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg font-semibold">Create</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 10. USER ACTION / MODERATION MODAL -->
+<div class="modal-bg" id="user-action-modal">
+  <div class="modal-box">
+    <div class="flex items-center justify-between mb-3 border-b border-slate-800 pb-2.5">
+      <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+        <i class="fa-solid fa-user-shield text-blue-400"></i> User Actions
+      </h3>
+      <button onclick="closeModal('user-action-modal')" class="text-slate-500 hover:text-white">&times;</button>
+    </div>
+    <div id="ua-target-info" class="flex items-center gap-3 p-3 bg-slate-950 rounded-lg border border-slate-800 mb-3">
+      <!-- Target info injected -->
+    </div>
+    <div class="grid grid-cols-2 gap-2 text-xs">
+      <button onclick="sendDirectMessageToTarget()" class="p-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-left flex items-center gap-2">
+        <i class="fa-solid fa-message text-blue-400"></i> Message in DM
+      </button>
+      <button onclick="addFriendFromTarget()" class="p-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-left flex items-center gap-2">
+        <i class="fa-solid fa-user-plus text-emerald-400"></i> Add Friend
+      </button>
+
+      <!-- Staff Actions (shown if staff) -->
+      <button onclick="modAction('warn')" class="mod-btn p-2 rounded bg-yellow-950/30 hover:bg-yellow-900/40 text-yellow-300 border border-yellow-800/40 text-left flex items-center gap-2">
+        <i class="fa-solid fa-triangle-exclamation"></i> Warn User
+      </button>
+      <button onclick="modAction('mute')" class="mod-btn p-2 rounded bg-orange-950/30 hover:bg-orange-900/40 text-orange-300 border border-orange-800/40 text-left flex items-center gap-2">
+        <i class="fa-solid fa-volume-xmark"></i> Mute / Unmute
+      </button>
+      <button onclick="modAction('kick')" class="mod-btn p-2 rounded bg-red-950/30 hover:bg-red-900/40 text-red-300 border border-red-800/40 text-left flex items-center gap-2">
+        <i class="fa-solid fa-user-minus"></i> Kick Session
+      </button>
+      <button onclick="modAction('ban')" class="mod-btn p-2 rounded bg-red-950/50 hover:bg-red-900/60 text-red-200 border border-red-700 text-left flex items-center gap-2">
+        <i class="fa-solid fa-ban"></i> Ban Account
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 11. STAFF CONTROL PANEL MODAL (ALL TABS) -->
+<div class="modal-bg" id="admin-modal">
+  <div class="modal-box wide">
+    <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-3">
+      <div class="flex items-center gap-2">
+        <span class="w-7 h-7 rounded-lg bg-red-500/20 text-red-400 flex items-center justify-center text-sm border border-red-500/30">
+          <i class="fa-solid fa-shield-halved"></i>
+        </span>
+        <div>
+          <h3 class="font-bold text-sm text-slate-100">BetterChat Staff Control Panel</h3>
+          <p class="text-[11px] text-slate-500">System administration, moderation, and diagnostics</p>
+        </div>
+      </div>
+      <button onclick="closeModal('admin-modal')" class="text-slate-500 hover:text-white">&times;</button>
+    </div>
+
+    <!-- Admin Tabs -->
+    <div class="flex flex-wrap gap-1.5 bg-slate-900 p-1.5 rounded-lg border border-slate-800 mb-4 text-xs font-semibold">
+      <button class="adm-tab px-3 py-1.5 rounded bg-blue-600 text-white" onclick="switchAdmTab(this, 'adm-users')">Users</button>
+      <button class="adm-tab px-3 py-1.5 rounded text-slate-400 hover:text-white" onclick="switchAdmTab(this, 'adm-bans')">Bans</button>
+      <button class="adm-tab px-3 py-1.5 rounded text-slate-400 hover:text-white" onclick="switchAdmTab(this, 'adm-channels')">Channels</button>
+      <button class="adm-tab px-3 py-1.5 rounded text-slate-400 hover:text-white" onclick="switchAdmTab(this, 'adm-maint')">Maintenance</button>
+      <button class="adm-tab px-3 py-1.5 rounded text-slate-400 hover:text-white" onclick="switchAdmTab(this, 'adm-stats')">Stats</button>
+      <button class="adm-tab px-3 py-1.5 rounded text-slate-400 hover:text-white" onclick="switchAdmTab(this, 'adm-feedback')">Feedback</button>
+      <button class="adm-tab px-3 py-1.5 rounded text-slate-400 hover:text-white" onclick="switchAdmTab(this, 'adm-sessions')">Sessions</button>
+    </div>
+
+    <!-- 1. Admin Users -->
+    <div id="adm-users" class="adm-pane space-y-3">
+      <div class="flex gap-2">
+        <input type="text" id="adm-user-search" placeholder="Search users by name or ID..." oninput="searchAdminUsers(this.value)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 outline-none">
+        <button onclick="loadAdminUsers()" class="bg-slate-800 text-slate-300 text-xs px-3 py-1.5 rounded-lg">Refresh</button>
+      </div>
+      <div id="adm-users-list" class="max-h-80 overflow-y-auto space-y-1.5">
+        <p class="text-center text-slate-500 text-xs py-4">Loading users...</p>
+      </div>
+    </div>
+
+    <!-- 2. Admin Bans -->
+    <div id="adm-bans" class="adm-pane hidden space-y-3">
+      <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 flex gap-2">
+        <input type="text" id="ban-target-user" placeholder="Username to ban" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 outline-none">
+        <input type="text" id="ban-target-reason" placeholder="Reason" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-100 outline-none">
+        <button onclick="adminBanUser()" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg font-semibold">Ban</button>
+      </div>
+      <div id="adm-bans-list" class="max-h-72 overflow-y-auto space-y-1.5">
+        <p class="text-center text-slate-500 text-xs py-4">Loading bans...</p>
+      </div>
+    </div>
+
+    <!-- 3. Admin Channels -->
+    <div id="adm-channels" class="adm-pane hidden space-y-3">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-xs font-semibold text-slate-300">Managed Channels</span>
+        <button onclick="openModal('create-channel-modal')" class="bg-blue-600 text-white text-xs px-2.5 py-1 rounded">Add Channel</button>
+      </div>
+      <div id="adm-channels-list" class="max-h-72 overflow-y-auto space-y-1.5">
+        <!-- Channels list -->
+      </div>
+    </div>
+
+    <!-- 4. Admin Maintenance -->
+    <div id="adm-maint" class="adm-pane hidden space-y-3">
+      <div class="flex items-center justify-between bg-slate-950 p-3 rounded-lg border border-slate-800">
+        <div>
+          <span class="font-bold text-xs text-slate-200">System Maintenance Mode</span>
+          <p class="text-[11px] text-slate-500">Locks non-staff users out of the system</p>
+        </div>
+        <label class="switch-toggle">
+          <input type="checkbox" id="maint-toggle" onchange="toggleMaintenanceMode(this.checked)">
+          <span class="switch-slider"></span>
+        </label>
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold uppercase text-slate-400 mb-1">Maintenance Notice Message</label>
+        <textarea id="maint-msg-input" rows="3" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-xs text-slate-200 outline-none"></textarea>
+        <button onclick="saveMaintenanceNotice()" class="mt-2 bg-blue-600 text-white text-xs px-3 py-1.5 rounded-lg font-semibold">Save Notice</button>
+      </div>
+    </div>
+
+    <!-- 5. Admin Stats -->
+    <div id="adm-stats" class="adm-pane hidden">
+      <div class="grid grid-cols-3 gap-3" id="adm-stats-cards">
+        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-center">
+          <span class="text-2xl font-bold text-blue-400" id="stat-users">-</span>
+          <span class="block text-[10px] uppercase text-slate-500 font-semibold mt-1">Users</span>
+        </div>
+        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-center">
+          <span class="text-2xl font-bold text-emerald-400" id="stat-msgs">-</span>
+          <span class="block text-[10px] uppercase text-slate-500 font-semibold mt-1">Messages</span>
+        </div>
+        <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-center">
+          <span class="text-2xl font-bold text-purple-400" id="stat-channels">-</span>
+          <span class="block text-[10px] uppercase text-slate-500 font-semibold mt-1">Channels</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. Admin Feedback -->
+    <div id="adm-feedback" class="adm-pane hidden">
+      <div id="adm-feedback-list" class="max-h-72 overflow-y-auto space-y-2">
+        <p class="text-center text-slate-500 text-xs py-4">Loading feedback...</p>
+      </div>
+    </div>
+
+    <!-- 7. Admin Sessions -->
+    <div id="adm-sessions" class="adm-pane hidden">
+      <div id="adm-sessions-list" class="max-h-72 overflow-y-auto space-y-1.5 font-mono text-xs">
+        <p class="text-center text-slate-500 text-xs py-4">Loading active sessions...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast notifications -->
+<div id="toast-container" class="fixed bottom-5 right-5 flex flex-col gap-2 z-50 pointer-events-none"></div>
+
+<!-- ════ JAVASCRIPT LOGIC ═══════════════════════════════════════════════════ -->
+<script>
+// Configuration & State
+let API_BASE = localStorage.getItem('BC_SERVER_URL') || window.location.origin;
+let AUTH_TOKEN = localStorage.getItem('BC_AUTH_TOKEN') || '';
+let ME = null;
+let currentChannel = 'general';
+let isDM = false;
+let dmUserId = null;
+let activeChannels = [];
+let allMembers = [];
+let messagesList = [];
+let pollTimer = null;
+let typingTimer = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let recordInterval = null;
+let recordSeconds = 0;
+let lastMsgId = 0;
+
+// Helper: Toast
+function toast(msg, type = 'info') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  const colors = {
+    info: 'bg-blue-900/90 border-blue-700 text-blue-100',
+    success: 'bg-emerald-900/90 border-emerald-700 text-emerald-100',
+    error: 'bg-red-900/90 border-red-700 text-red-100'
+  };
+  t.className = `px-4 py-2.5 rounded-lg border shadow-xl text-xs font-medium backdrop-blur transition-all pointer-events-auto flex items-center gap-2 ${colors[type] || colors.info}`;
+  t.innerHTML = `<span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(() => {
+    t.style.opacity = '0';
+    setTimeout(() => t.remove(), 200);
+  }, 3500);
+}
+
+// Helper: Modal toggle
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('open');
+}
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+
+// API Dispatcher with Bearer Token and Server URL
+async function api(action, params = {}, method = 'POST') {
+  let url = `${API_BASE}/api.php?action=${encodeURIComponent(action)}`;
+  const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+  if (AUTH_TOKEN) headers['Authorization'] = `Bearer ${AUTH_TOKEN}`;
+
+  let body = null;
+  if (params instanceof FormData) {
+    body = params;
+  } else if (method === 'POST') {
+    headers['Content-Type'] = 'application/json';
+    body = JSON.stringify(params);
+  } else {
+    const q = new URLSearchParams(params).toString();
+    if (q) url += `&${q}`;
+  }
+
+  try {
+    const res = await fetch(url, { method, headers, body });
+    const data = await res.json();
+    return data;
+  } catch (err) {
+    console.error(`API [${action}] error:`, err);
+    return { ok: false, error: err.message };
+  }
+}
+
+// Server Connection & Diagnostics
+async function checkServerStatus() {
+  const t0 = performance.now();
+  const pingDot = document.getElementById('server-ping-dot');
+  const pingTxt = document.getElementById('server-ping-text');
+
+  try {
+    const res = await api('ping', {}, 'GET');
+    const latency = Math.round(performance.now() - t0);
+    if (res && (res.ok || res.time || res.status === 'ok' || res.hit_counter !== undefined)) {
+      pingDot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+      pingTxt.className = 'font-mono text-[11px] text-emerald-400 font-semibold';
+      pingTxt.textContent = `${latency}ms`;
+      document.getElementById('diag-latency').textContent = `${latency} ms`;
+      document.getElementById('diag-status').textContent = 'Online & Ready';
+      if (res.hit_counter !== undefined) {
+        document.getElementById('site-hits').textContent = res.hit_counter;
+        document.getElementById('diag-hits').textContent = res.hit_counter;
+      }
+      return true;
+    } else {
+      throw new Error(res.error || 'Server unhealthy');
+    }
+  } catch (e) {
+    pingDot.className = 'w-2 h-2 rounded-full bg-red-500';
+    pingTxt.className = 'font-mono text-[11px] text-red-400 font-semibold';
+    pingTxt.textContent = 'Offline';
+    document.getElementById('diag-status').textContent = 'Disconnected';
+    document.getElementById('diag-latency').textContent = 'Timeout';
+    return false;
+  }
+}
+
+async function pingServerTest() {
+  document.getElementById('diag-status').textContent = 'Testing...';
+  await checkServerStatus();
+  toast('Diagnostics ping completed!', 'info');
+}
+
+function setServerPreset(type) {
+  const inp = document.getElementById('cfg-server-url');
+  if (type === 'origin') inp.value = window.location.origin;
+  else if (type === 'localhost') inp.value = 'http://localhost:3000';
+  else if (type === 'relative') inp.value = '..';
+}
+
+function saveServerConfig() {
+  let val = document.getElementById('cfg-server-url').value.trim();
+  if (val.endsWith('/')) val = val.slice(0, -1);
+  API_BASE = val || window.location.origin;
+  localStorage.setItem('BC_SERVER_URL', API_BASE);
+  closeModal('server-modal');
+  toast('Server URL updated. Reconnecting...', 'success');
+  checkServerStatus();
+  bootApp();
+}
+
+// Authentication Handlers
+async function checkAuth() {
+  const res = await api('auth_check', {}, 'GET');
+  if (res && res.ok && res.user) {
+    ME = res.user;
+    updateUserUI();
+    return true;
+  } else {
+    ME = null;
+    updateUserUI();
+    return false;
+  }
+}
+
+function updateUserUI() {
+  const area = document.getElementById('user-header-area');
+  const btnAdmin = document.getElementById('btn-admin-panel');
+  const btnAddCh = document.getElementById('btn-add-channel');
+
+  if (ME) {
+    const isStaff = ME.is_admin || ME.is_mod || ME.role === 'ADMIN' || ME.role === 'OWNER';
+    if (isStaff) {
+      btnAdmin.classList.remove('hidden');
+      btnAddCh.classList.remove('hidden');
+    } else {
+      btnAdmin.classList.add('hidden');
+      btnAddCh.classList.add('hidden');
+    }
+
+    const av = ME.avatar ? `<img src="${ME.avatar}" class="w-full h-full object-cover">` : ME.username[0].toUpperCase();
+    area.innerHTML = `
+      <div onclick="openModal('profile-modal')" class="flex items-center gap-2 cursor-pointer hover:bg-slate-800 p-1 rounded-lg transition-colors">
+        <div class="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold text-white overflow-hidden shadow">
+          ${av}
+        </div>
+        <span class="text-xs font-semibold hidden md:inline" style="color:${ME.name_color || '#3b82f6'}">${ME.username}</span>
+      </div>
+      <button onclick="logout()" title="Logout" class="text-slate-500 hover:text-red-400 text-xs p-1">
+        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+      </button>
+    `;
+  } else {
+    btnAdmin.classList.add('hidden');
+    btnAddCh.classList.add('hidden');
+    area.innerHTML = `
+      <button onclick="openModal('auth-modal')" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-semibold shadow-sm">
+        Sign In
+      </button>
+    `;
+  }
+}
+
+let authMode = 'login';
+function switchAuthTab(mode) {
+  authMode = mode;
+  document.getElementById('tab-login').className = mode === 'login' ? 'flex-1 py-1.5 rounded-md text-xs font-semibold bg-blue-600 text-white' : 'flex-1 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white';
+  document.getElementById('tab-register').className = mode === 'register' ? 'flex-1 py-1.5 rounded-md text-xs font-semibold bg-blue-600 text-white' : 'flex-1 py-1.5 rounded-md text-xs font-semibold text-slate-400 hover:text-white';
+  document.getElementById('auth-submit-btn').textContent = mode === 'login' ? 'Sign In' : 'Create Account';
+  document.getElementById('auth-error').classList.add('hidden');
+}
+
+async function handleAuthSubmit(e) {
+  e.preventDefault();
+  const u = document.getElementById('auth-username').value.trim();
+  const p = document.getElementById('auth-password').value;
+  const errBox = document.getElementById('auth-error');
+
+  const action = authMode === 'login' ? 'login' : 'register';
+  const res = await api(action, { username: u, password: p });
+
+  if (res && res.ok) {
+    if (res.token) {
+      AUTH_TOKEN = res.token;
+      localStorage.setItem('BC_AUTH_TOKEN', AUTH_TOKEN);
+    }
+    ME = res.user;
+    closeModal('auth-modal');
+    toast(`Welcome, ${ME.username}!`, 'success');
+    updateUserUI();
+    loadChannels();
+    loadMessages();
+    loadMembers();
+  } else {
+    errBox.textContent = res.error || 'Authentication failed.';
+    errBox.classList.remove('hidden');
+  }
+}
+
+function continueAsGuest() {
+  closeModal('auth-modal');
+  toast('Browsing as Guest. Sign in anytime from the top bar.', 'info');
+}
+
+function logout() {
+  AUTH_TOKEN = '';
+  localStorage.removeItem('BC_AUTH_TOKEN');
+  ME = null;
+  updateUserUI();
+  toast('Signed out.', 'info');
+  loadMessages();
+}
+
+// Channels & DMs
+async function loadChannels() {
+  const res = await api('get_channels', {}, 'GET');
+  const box = document.getElementById('channels-list');
+  if (res && res.ok && res.channels) {
+    activeChannels = res.channels;
+    box.innerHTML = activeChannels.map(ch => {
+      const active = (!isDM && currentChannel === ch.name) ? 'active' : '';
+      const icon = ch.is_announcement ? 'fa-bullhorn text-yellow-500' : 'fa-hashtag text-slate-500';
+      return `
+        <div class="channel-item ${active}" onclick="switchChannel('${ch.name}')">
+          <i class="fa-solid ${icon} text-xs w-4"></i>
+          <span class="truncate flex-1">${ch.name}</span>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+function switchChannel(name) {
+  isDM = false;
+  currentChannel = name;
+  dmUserId = null;
+  document.getElementById('header-hash').textContent = '#';
+  document.getElementById('header-channel-name').textContent = name;
+  const ch = activeChannels.find(c => c.name === name);
+  document.getElementById('header-topic').textContent = ch ? (ch.topic || '') : '';
+  document.getElementById('msg-input').placeholder = `Message #${name}...`;
+  loadChannels();
+  loadMessages();
+}
+
+// Messages Rendering & Markdown
+function formatMarkdown(text) {
+  if (!text) return '';
+  let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // 2X text
+  s = s.replace(/\b2X\s+(.*?)(?=\n|$)/gi, '<div class="text-2x">$1</div>');
+  // Headers
+  s = s.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+  s = s.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+  s = s.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+  // Bold & Italics
+  s = s.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  s = s.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/\*(.*?)\*/g, '<em>$1</em>');
+  s = s.replace(/~~(.*?)~~/g, '<del>$1</del>');
+  // Code
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Quotes
+  s = s.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
+  // Links
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" class="text-blue-400 hover:underline">$1</a>');
+  // Newlines
+  s = s.replace(/\n/g, '<br>');
+  // Twemoji
+  if (window.twemoji) {
+    s = twemoji.parse(s, { folder: 'svg', ext: '.svg' });
+  }
+  return s;
+}
+
+async function loadMessages() {
+  const params = isDM ? { dm_user_id: dmUserId } : { channel: currentChannel };
+  const res = await api('get_messages', params, 'GET');
+  const box = document.getElementById('messages');
+
+  if (res && res.ok && res.messages) {
+    messagesList = res.messages;
+    if (messagesList.length === 0) {
+      box.innerHTML = `
+        <div class="flex-1 flex flex-col items-center justify-center text-slate-500 py-12">
+          <i class="fa-regular fa-comment-dots text-4xl mb-2 text-slate-600"></i>
+          <p class="text-sm font-semibold text-slate-400">Welcome to #${isDM ? 'Direct Messages' : currentChannel}!</p>
+          <p class="text-xs">Be the first to break the ice and start the conversation.</p>
+        </div>
+      `;
+      return;
+    }
+
+    box.innerHTML = messagesList.map(msg => {
+      const av = msg.avatar ? `<img src="${msg.avatar}" class="w-full h-full object-cover">` : msg.username[0].toUpperCase();
+      const isStaff = msg.is_admin || msg.is_mod || msg.role === 'ADMIN' || msg.role === 'OWNER';
+      const roleBadge = isStaff ? `<span class="role-badge bg-red-950/60 text-red-400 border border-red-800/40">${msg.role || 'STAFF'}</span>` : '';
+      const timeStr = new Date(msg.created_at || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      let mediaHtml = '';
+      if (msg.image_url) {
+        mediaHtml += `
+          <div class="mt-2 max-w-sm rounded-lg overflow-hidden border border-slate-800 cursor-pointer" onclick="zoomImage('${msg.image_url}')">
+            <img src="${msg.image_url}" class="max-h-64 rounded-lg object-contain bg-slate-950" loading="lazy" referrerpolicy="no-referrer">
+          </div>
+        `;
+      }
+      if (msg.audio_url) {
+        mediaHtml += `
+          <div class="mt-2 bg-slate-850 p-2.5 rounded-lg border border-slate-700/80 max-w-sm flex items-center gap-3">
+            <audio controls src="${msg.audio_url}" class="w-full h-8"></audio>
+          </div>
+        `;
+      }
+      if (msg.file_url) {
+        mediaHtml += `
+          <div class="mt-2">
+            <a href="${msg.file_url}" target="_blank" download class="inline-flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold">
+              <i class="fa-solid fa-file-arrow-down text-blue-400"></i> Download Attachment
+            </a>
+          </div>
+        `;
+      }
+      if (msg.iframe_url) {
+        mediaHtml += `
+          <div class="mt-2 max-w-lg rounded-xl overflow-hidden border border-slate-700 shadow-lg">
+            <div class="bg-slate-800 px-3 py-1.5 text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+              <span><i class="fa-solid fa-globe text-blue-400 mr-1.5"></i> ${msg.iframe_title || 'Embedded Widget'}</span>
+              <a href="${msg.iframe_url}" target="_blank" class="text-blue-400 hover:underline"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+            </div>
+            <iframe src="${msg.iframe_url}" class="w-full h-64 border-none bg-white"></iframe>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="msg-row group hover:bg-slate-900/60 p-1.5 md:p-2 rounded-xl flex gap-3 transition-colors">
+          <div class="w-9 h-9 rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center font-bold text-white overflow-hidden cursor-pointer" onclick="openUserAction(${msg.user_id}, '${msg.username}')">
+            ${av}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-0.5">
+              <span class="font-bold text-xs cursor-pointer hover:underline" style="color:${msg.name_color || '#38bdf8'}" onclick="openUserAction(${msg.user_id}, '${msg.username}')">
+                ${msg.username}
+              </span>
+              ${roleBadge}
+              <span class="text-[10px] text-slate-500 font-mono">${timeStr}</span>
+            </div>
+            <div class="text-xs text-slate-200 msg-body break-words leading-relaxed">
+              ${formatMarkdown(msg.content)}
+            </div>
+            ${mediaHtml}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    box.scrollTop = box.scrollHeight;
+  }
+}
+
+async function sendMessage() {
+  if (!ME) {
+    openModal('auth-modal');
+    return;
+  }
+  const inp = document.getElementById('msg-input');
+  const text = inp.value.trim();
+  if (!text) return;
+
+  inp.value = '';
+  autoGrow(inp);
+
+  const params = isDM ? { dm_user_id: dmUserId, content: text } : { channel: currentChannel, content: text };
+  const res = await api('send_message', params);
+  if (res && res.ok) {
+    loadMessages();
+  } else {
+    toast(res.error || 'Failed to send message', 'error');
+  }
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+function zoomImage(src) {
+  const z = document.getElementById('img-zoom');
+  const img = document.getElementById('img-zoom-src');
+  img.src = src;
+  z.style.display = 'flex';
+}
+
+function insertEmoji(em) {
+  const inp = document.getElementById('msg-input');
+  inp.value += em;
+  inp.focus();
+}
+
+// Media Uploads
+async function sendImage(inp) {
+  if (!inp.files || !inp.files[0]) return;
+  if (!ME) { openModal('auth-modal'); return; }
+  const file = inp.files[0];
+  const fd = new FormData();
+  fd.append('image', file);
+  fd.append('channel', currentChannel);
+  if (isDM) fd.append('dm_user_id', dmUserId);
+
+  toast('Uploading image...', 'info');
+  const res = await api('send_image', fd);
+  if (res && res.ok) {
+    toast('Image posted!', 'success');
+    loadMessages();
+  } else {
+    toast(res.error || 'Upload failed', 'error');
+  }
+  inp.value = '';
+}
+
+async function sendFile(inp) {
+  if (!inp.files || !inp.files[0]) return;
+  if (!ME) { openModal('auth-modal'); return; }
+  const file = inp.files[0];
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('channel', currentChannel);
+  if (isDM) fd.append('dm_user_id', dmUserId);
+
+  toast('Uploading file...', 'info');
+  const res = await api('send_file', fd);
+  if (res && res.ok) {
+    toast('File sent!', 'success');
+    loadMessages();
+  } else {
+    toast(res.error || 'Upload failed', 'error');
+  }
+  inp.value = '';
+}
+
+// Voice Recording with MediaRecorder
+async function toggleVoiceRecording() {
+  if (!ME) { openModal('auth-modal'); return; }
+  const btn = document.getElementById('voice-btn');
+  const timer = document.getElementById('voice-timer');
+  const timeLbl = document.getElementById('voice-time');
+
+  if (mediaRecorder && mediaRecorder.state === 'recording') {
+    mediaRecorder.stop();
+    btn.classList.remove('bg-red-600', 'text-white');
+    btn.classList.add('bg-slate-800', 'text-slate-400');
+    timer.classList.add('hidden');
+    clearInterval(recordInterval);
+    return;
+  }
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = async () => {
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      const fd = new FormData();
+      fd.append('audio', blob, 'voice.webm');
+      fd.append('channel', currentChannel);
+      if (isDM) fd.append('dm_user_id', dmUserId);
+
+      toast('Sending voice message...', 'info');
+      const res = await api('send_audio', fd);
+      if (res && res.ok) {
+        toast('Voice note sent!', 'success');
+        loadMessages();
+      } else {
+        toast(res.error || 'Voice upload failed', 'error');
+      }
+    };
+
+    mediaRecorder.start();
+    btn.classList.add('bg-red-600', 'text-white');
+    timer.classList.remove('hidden');
+    recordSeconds = 0;
+    recordInterval = setInterval(() => {
+      recordSeconds++;
+      const m = Math.floor(recordSeconds / 60);
+      const s = recordSeconds % 60;
+      timeLbl.textContent = `${m}:${s < 10 ? '0' : ''}${s}`;
+    }, 1000);
+  } catch (err) {
+    toast('Microphone permission denied or unsupported', 'error');
+  }
+}
+
+// Embed Iframes
+async function sendIframe() {
+  const t = document.getElementById('iframe-title').value.trim();
+  const u = document.getElementById('iframe-url').value.trim();
+  if (!u) { toast('Please provide a valid URL', 'error'); return; }
+
+  const res = await api('send_iframe', { channel: currentChannel, title: t, url: u });
+  if (res && res.ok) {
+    closeModal('iframe-modal');
+    toast('Iframe embedded!', 'success');
+    loadMessages();
+  } else {
+    toast(res.error || 'Failed to embed iframe', 'error');
+  }
+}
+
+// Members Sidebar
+async function loadMembers() {
+  const res = await api('get_members', {}, 'GET');
+  const box = document.getElementById('members-list');
+  const cnt = document.getElementById('members-count');
+
+  if (res && res.ok && res.members) {
+    allMembers = res.members;
+    cnt.textContent = allMembers.length;
+    box.innerHTML = allMembers.map(m => {
+      const av = m.avatar ? `<img src="${m.avatar}" class="w-full h-full object-cover">` : m.username[0].toUpperCase();
+      const isOnline = m.is_online ? 'bg-emerald-400' : 'bg-slate-600';
+      return `
+        <div class="member-item" onclick="openUserAction(${m.id}, '${m.username}')">
+          <div class="relative w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center font-bold text-xs text-white overflow-hidden flex-shrink-0">
+            ${av}
+            <span class="absolute bottom-0 right-0 w-2 h-2 rounded-full border border-slate-900 ${isOnline}"></span>
+          </div>
+          <div class="min-w-0 flex-1">
+            <span class="text-xs font-semibold block truncate" style="color:${m.name_color || '#cbd5e1'}">${m.username}</span>
+            <span class="text-[10px] text-slate-500 block truncate">${m.custom_tag || m.role || 'Member'}</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+// User Action Modal
+let targetUserId = null;
+let targetUsername = '';
+function openUserAction(uid, uname) {
+  targetUserId = uid;
+  targetUsername = uname;
+  document.getElementById('ua-target-info').innerHTML = `
+    <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center text-base font-bold text-white">
+      ${uname[0].toUpperCase()}
+    </div>
+    <div>
+      <span class="font-bold text-sm text-slate-100">${uname}</span>
+      <span class="block text-[11px] text-slate-500">ID: #${uid}</span>
+    </div>
+  `;
+  openModal('user-action-modal');
+}
+
+function sendDirectMessageToTarget() {
+  closeModal('user-action-modal');
+  isDM = true;
+  dmUserId = targetUserId;
+  document.getElementById('header-hash').textContent = '@';
+  document.getElementById('header-channel-name').textContent = targetUsername;
+  document.getElementById('header-topic').textContent = `Direct message with @${targetUsername}`;
+  document.getElementById('msg-input').placeholder = `Message @${targetUsername}...`;
+  loadMessages();
+}
+
+async function addFriendFromTarget() {
+  const res = await api('send_friend_request', { target_username: targetUsername });
+  if (res && res.ok) {
+    toast(`Friend request sent to ${targetUsername}!`, 'success');
+  } else {
+    toast(res.error || 'Failed to send friend request', 'error');
+  }
+}
+
+async function modAction(subAct) {
+  const res = await api('admin_action', { target_user_id: targetUserId, sub_action: subAct });
+  if (res && res.ok) {
+    toast(`Action [${subAct}] executed successfully.`, 'success');
+    closeModal('user-action-modal');
+  } else {
+    toast(res.error || 'Moderation action failed.', 'error');
+  }
+}
+
+// Wordle Mini-Game Engine
+let wordleSecret = 'REACT';
+let wordleRow = 0;
+let wordleCol = 0;
+let wordleGuesses = Array(6).fill('');
+
+function initWordle() {
+  const grid = document.getElementById('wordle-grid');
+  grid.innerHTML = '';
+  for (let r = 0; r < 6; r++) {
+    const rowDiv = document.createElement('div');
+    rowDiv.className = 'flex gap-2';
+    for (let c = 0; c < 5; c++) {
+      const tile = document.createElement('div');
+      tile.id = `wt-${r}-${c}`;
+      tile.className = 'w-tile';
+      rowDiv.appendChild(tile);
+    }
+    grid.appendChild(rowDiv);
+  }
+
+  const kb = document.getElementById('wordle-keyboard');
+  const rows = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
+  kb.innerHTML = rows.map((r, i) => {
+    let keys = r.split('').map(k => `<button class="w-key" onclick="handleWordleKey('${k}')">${k}</button>`).join('');
+    if (i === 2) {
+      keys = `<button class="w-key" onclick="handleWordleKey('ENTER')">ENTER</button>` + keys + `<button class="w-key" onclick="handleWordleKey('BACK')">⌫</button>`;
+    }
+    return `<div class="flex gap-1.5">${keys}</div>`;
+  }).join('');
+}
+
+async function openWordleModal() {
+  const res = await api('get_wordle', {}, 'GET');
+  if (res && res.word) wordleSecret = res.word.toUpperCase();
+  initWordle();
+  openModal('wordle-modal');
+}
+
+function handleWordleKey(k) {
+  if (wordleRow >= 6) return;
+  if (k === 'ENTER') {
+    if (wordleCol === 5) checkWordleGuess();
+  } else if (k === 'BACK') {
+    if (wordleCol > 0) {
+      wordleCol--;
+      const t = document.getElementById(`wt-${wordleRow}-${wordleCol}`);
+      t.textContent = '';
+      wordleGuesses[wordleRow] = wordleGuesses[wordleRow].slice(0, -1);
+    }
+  } else if (/^[A-Z]$/.test(k)) {
+    if (wordleCol < 5) {
+      const t = document.getElementById(`wt-${wordleRow}-${wordleCol}`);
+      t.textContent = k;
+      wordleGuesses[wordleRow] += k;
+      wordleCol++;
+    }
+  }
+}
+
+function checkWordleGuess() {
+  const guess = wordleGuesses[wordleRow];
+  for (let i = 0; i < 5; i++) {
+    const t = document.getElementById(`wt-${wordleRow}-${i}`);
+    const ch = guess[i];
+    if (ch === wordleSecret[i]) t.classList.add('correct');
+    else if (wordleSecret.includes(ch)) t.classList.add('present');
+    else t.classList.add('absent');
+  }
+
+  if (guess === wordleSecret) {
+    toast('🎉 Spectacular! You solved the Wordle puzzle!', 'success');
+    wordleRow = 7;
+  } else {
+    wordleRow++;
+    wordleCol = 0;
+    if (wordleRow === 6) toast(`Game Over! The word was ${wordleSecret}`, 'info');
+  }
+}
+
+function shareWordleScore() {
+  closeModal('wordle-modal');
+  const score = wordleRow <= 6 ? `${wordleRow}/6` : 'X/6';
+  const inp = document.getElementById('msg-input');
+  inp.value = `BetterChat Wordle ${score} 🟩🟨⬜`;
+  sendMessage();
+}
+
+// Staff Admin Panel Tabs & Functions
+function openAdminModal() {
+  loadAdminUsers();
+  loadAdminStats();
+  openModal('admin-modal');
+}
+
+function switchAdmTab(btn, paneId) {
+  document.querySelectorAll('.adm-tab').forEach(b => {
+    b.className = 'adm-tab px-3 py-1.5 rounded text-slate-400 hover:text-white';
+  });
+  btn.className = 'adm-tab px-3 py-1.5 rounded bg-blue-600 text-white';
+  document.querySelectorAll('.adm-pane').forEach(p => p.classList.add('hidden'));
+  document.getElementById(paneId).classList.remove('hidden');
+}
+
+async function loadAdminUsers() {
+  const res = await api('admin_get_users', {}, 'GET');
+  const box = document.getElementById('adm-users-list');
+  if (res && res.ok && res.users) {
+    box.innerHTML = res.users.map(u => `
+      <div class="flex items-center justify-between p-2 rounded bg-slate-950 border border-slate-800 text-xs">
+        <div>
+          <strong class="text-slate-200">${u.username}</strong> <span class="text-slate-500">(#${u.id})</span>
+          <span class="role-badge bg-blue-950 text-blue-300 ml-1">${u.role || 'USER'}</span>
+        </div>
+        <button onclick="openUserAction(${u.id}, '${u.username}')" class="text-blue-400 hover:underline">Manage</button>
+      </div>
+    `).join('');
+  }
+}
+
+async function loadAdminStats() {
+  const res = await api('admin_get_stats', {}, 'GET');
+  if (res && res.stats) {
+    document.getElementById('stat-users').textContent = res.stats.total_users || 0;
+    document.getElementById('stat-msgs').textContent = res.stats.total_messages || 0;
+    document.getElementById('stat-channels').textContent = res.stats.total_channels || 0;
+  }
+}
+
+// Mobile sidebar & members toggles
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+function toggleMembers() {
+  document.getElementById('members').classList.toggle('open');
+}
+
+// App Boot Sequence
+async function bootApp() {
+  document.getElementById('cfg-server-url').value = API_BASE;
+  await checkServerStatus();
+  await checkAuth();
+  await loadChannels();
+  await loadMessages();
+  await loadMembers();
+
+  // Periodic polling for real-time messages & server status
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    loadMessages();
+    checkServerStatus();
+  }, 4000);
+}
+
+document.addEventListener('DOMContentLoaded', bootApp);
+</script>
+</body>
+</html>

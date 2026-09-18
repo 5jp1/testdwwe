@@ -1,0 +1,1484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BetterForums (Standalone Port)</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+body {
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 12px;
+    background-color: #0b1120;
+    color: #f8fafc;
+    min-height: 100vh;
+}
+a { color: #38bdf8; text-decoration: none; transition: color 0.15s ease; }
+a:hover { color: #60a5fa; text-decoration: underline; }
+
+.gradient-text {
+    background: linear-gradient(to right, #3b82f6, #06b6d4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* TOP MOTD MARQUEE TICKER */
+.motd-bar {
+    background-color: #070b14;
+    border-bottom: 1px solid #1e293b;
+    padding: 3px 12px;
+    font-size: 11px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+}
+.motd-badge {
+    background: rgba(59,130,246,0.15);
+    color: #38bdf8;
+    font-size: 9px;
+    font-weight: 800;
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(59,130,246,0.3);
+    text-transform: uppercase;
+}
+
+/* SUBBETTERS TOP HEADER BAR */
+.sr-header-bar {
+    background-color: #090d16;
+    border-bottom: 1px solid #1e293b;
+    font-size: 10px;
+    padding: 5px 14px;
+    color: #94a3b8;
+    overflow-x: auto;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.sr-header-bar strong { color: #cbd5e1; font-size: 10px; letter-spacing: 0.5px; }
+.sr-header-bar a { color: #94a3b8; text-transform: uppercase; font-weight: 600; font-size: 10px; }
+.sr-header-bar a:hover, .sr-header-bar a.active { color: #38bdf8; }
+.sr-separator { color: #334155; }
+
+/* MAIN FORUM HEADER */
+.main-header {
+    background-color: #0f172a;
+    border-bottom: 1px solid #1e293b;
+    padding: 10px 16px 0 16px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+}
+.header-left { display: flex; align-items: flex-end; gap: 14px; }
+.site-logo { display: flex; align-items: center; gap: 8px; text-decoration: none !important; padding-bottom: 6px; }
+.site-logo-icon {
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    border-radius: 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+}
+.site-title { font-size: 18px; font-weight: 800; letter-spacing: -0.5px; }
+.sub-nav-tabs { display: flex; align-items: flex-end; gap: 4px; margin-left: 8px; }
+.nav-tab {
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid #1e293b;
+    border-bottom: none;
+    background-color: #1e293b;
+    color: #94a3b8;
+    border-radius: 6px 6px 0 0;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.nav-tab:hover { color: #f8fafc; background-color: #334155; }
+.nav-tab.active {
+    background-color: #0b1120;
+    color: #38bdf8;
+    border: 1px solid #334155;
+    border-bottom: 1px solid #0b1120;
+    border-top: 2px solid #38bdf8;
+    padding-top: 5px;
+    font-weight: bold;
+}
+
+/* ADVANCED SERVER BUTTON */
+.server-status-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: #cbd5e1;
+    cursor: pointer;
+    margin-bottom: 6px;
+    transition: all 0.15s ease;
+}
+.server-status-btn:hover { border-color: #38bdf8; background: #253349; }
+.ping-dot { width: 7px; height: 7px; border-radius: 50%; background: #10b981; }
+.ping-dot.offline { background: #ef4444; }
+
+.header-user-bar {
+    background-color: #1e293b;
+    border: 1px solid #334155;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    padding: 5px 12px;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #cbd5e1;
+}
+
+/* SYSTEM ANNOUNCEMENT BANNER */
+.announcement-banner {
+    background: linear-gradient(90deg, rgba(234,179,8,0.15), rgba(245,158,11,0.08));
+    border-bottom: 1px solid rgba(234,179,8,0.25);
+    padding: 7px 16px;
+    font-size: 11px;
+    color: #fde047;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* PAGE WRAPPER & GRID */
+.page-wrapper {
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 14px 16px;
+    display: flex;
+    gap: 16px;
+}
+.main-content {
+    flex: 1;
+    min-width: 0;
+    background-color: #121a2d;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 14px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+}
+.sidebar {
+    width: 310px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.sidebar-box {
+    background-color: #121a2d;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    padding: 14px;
+    font-size: 11px;
+}
+.sidebar-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* FEED CONTROLS & FILTER BAR */
+.feed-filter-bar {
+    background-color: #090d16;
+    border: 1px solid #1e293b;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.sort-pills { display: flex; gap: 4px; }
+.sort-pill {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #94a3b8;
+    background: transparent;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.sort-pill:hover { color: #f8fafc; background: #1e293b; }
+.sort-pill.active { background: #1e293b; color: #38bdf8; border-color: #334155; }
+
+/* POST CARD ROW */
+.post-row {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    display: flex;
+    gap: 12px;
+    transition: border-color 0.15s ease;
+}
+.post-row:hover { border-color: #334155; }
+.post-row.pinned { border-left: 3px solid #eab308; }
+
+.vote-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    width: 32px;
+    flex-shrink: 0;
+    padding-top: 2px;
+}
+.vote-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    transition: color 0.15s, background-color 0.15s;
+}
+.vote-btn:hover { color: #f8fafc; background: #1e293b; }
+.vote-btn.upvoted { color: #f97316; }
+.vote-btn.downvoted { color: #38bdf8; }
+.vote-score { font-size: 12px; font-weight: 700; color: #cbd5e1; margin: 2px 0; font-mono; }
+
+.post-main { flex: 1; min-width: 0; }
+.post-meta { font-size: 10px; color: #64748b; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.post-meta strong { color: #94a3b8; }
+.post-sub-link { color: #cbd5e1; font-weight: bold; }
+.post-sub-link:hover { color: #38bdf8; }
+.post-author { color: #94a3b8; font-weight: 600; }
+.post-author:hover { color: #38bdf8; }
+.post-title { font-size: 14px; font-weight: 700; color: #f8fafc; margin-bottom: 6px; line-height: 1.35; }
+.post-title:hover { color: #38bdf8; cursor: pointer; }
+.flair-badge { background: #1e293b; color: #38bdf8; font-size: 9px; padding: 2px 6px; border-radius: 4px; border: 1px solid #334155; font-weight: 600; vertical-align: middle; margin-right: 6px; }
+
+.post-snippet { font-size: 12px; color: #cbd5e1; margin-bottom: 8px; line-height: 1.5; word-break: break-word; }
+.post-actions { display: flex; gap: 12px; font-size: 11px; color: #64748b; margin-top: 6px; }
+.post-act-btn { color: #64748b; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; background: none; border: none; font-size: 11px; }
+.post-act-btn:hover { color: #cbd5e1; }
+
+/* COMMENT NODE */
+.comment-node { border-left: 2px solid #1e293b; padding-left: 12px; margin-top: 10px; }
+.comment-box { background: #090d16; border: 1px solid #1e293b; border-radius: 6px; padding: 10px; margin-bottom: 6px; }
+
+/* MODALS */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.modal-bg.open { opacity: 1; pointer-events: all; }
+.modal-box { background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 24px; min-width: 360px; max-width: 540px; width: 100%; max-height: 90vh; overflow-y: auto; transform: translateY(16px); transition: transform .25s; box-shadow: 0 25px 60px rgba(0,0,0,.8); color: #f8fafc; }
+.modal-bg.open .modal-box { transform: none; }
+.modal-box.wide { max-width: 820px; }
+
+.admin-tabs-nav { display: flex; flex-wrap: wrap; background: #090d16; border: 1px solid #1e293b; border-radius: 8px; padding: 4px; gap: 4px; margin-bottom: 16px; }
+.admin-tab-btn { flex: 1; min-width: 70px; padding: 6px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; text-align: center; color: #94a3b8; background: transparent; border: none; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; }
+.admin-tab-btn:hover { color: #ffffff; background: rgba(255,255,255,0.05); }
+.admin-tab-btn.active { background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+.admin-section { display: none; }
+.admin-section.active { display: block; }
+
+.stat-grid-box { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.stat-card { background: #090d16; border: 1px solid #1e293b; border-radius: 8px; padding: 10px; text-align: center; }
+.stat-card-num { font-size: 18px; font-weight: bold; color: #38bdf8; margin-bottom: 2px; }
+.stat-card-lbl { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.toast-msg { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px 16px; font-size: 12px; color: #f8fafc; box-shadow: 0 8px 24px rgba(0,0,0,0.6); pointer-events: auto; }
+
+/* Markdown Styling */
+.md-content h1 { font-size: 18px; font-weight: bold; margin: 8px 0; color: #f8fafc; }
+.md-content h2 { font-size: 16px; font-weight: bold; margin: 6px 0; color: #f8fafc; }
+.md-content h3 { font-size: 14px; font-weight: bold; margin: 4px 0; color: #f8fafc; }
+.md-content p { margin-bottom: 8px; line-height: 1.6; }
+.md-content blockquote { border-left: 3px solid #38bdf8; padding-left: 10px; color: #94a3b8; margin: 6px 0; font-style: italic; }
+.md-content code { background: #090d16; border: 1px solid #1e293b; padding: 1px 5px; border-radius: 4px; font-family: monospace; font-size: 11px; color: #34d399; }
+.md-content pre { background: #090d16; border: 1px solid #1e293b; padding: 10px; border-radius: 6px; font-family: monospace; overflow-x: auto; margin: 8px 0; color: #34d399; }
+.md-content .text-2x { font-size: 1.8em; font-weight: 800; color: #38bdf8; line-height: 1.2; margin: 4px 0; }
+.md-content img { max-width: 100%; border-radius: 8px; margin: 8px 0; border: 1px solid #334155; }
+</style>
+</head>
+<body>
+
+<!-- 1. TOP MOTD TICKER -->
+<div class="motd-bar">
+    <span class="motd-badge">MOTD</span>
+    <marquee scrollamount="4" style="flex:1; color:#cbd5e1;" id="motd-text">Welcome to BetterForums Standalone Port — Fully ported client connected to real backend.</marquee>
+</div>
+
+<!-- 2. SUBBETTERS BAR -->
+<div class="sr-header-bar">
+    <strong>MY SUBBETTERS:</strong>
+    <a href="#" onclick="selectSub('home'); return false;" id="sr-home" class="active">HOME</a>
+    <span class="sr-separator">-</span>
+    <a href="#" onclick="selectSub('all'); return false;" id="sr-all">ALL</a>
+    <span class="sr-separator">-</span>
+    <a href="#" onclick="selectSub('general'); return false;" id="sr-general">GENERAL</a>
+    <span class="sr-separator">-</span>
+    <a href="#" onclick="selectSub('announcements'); return false;" id="sr-announcements">ANNOUNCEMENTS</a>
+    <span class="sr-separator">-</span>
+    <a href="#" onclick="selectSub('gaming'); return false;" id="sr-gaming">GAMING</a>
+    <span class="sr-separator">-</span>
+    <a href="#" onclick="selectSub('technology'); return false;" id="sr-technology">TECHNOLOGY</a>
+    <span class="sr-separator">|</span>
+    <a href="#" onclick="openModal('create-sub-modal'); return false;" style="color:#38bdf8;"><i class="fa-solid fa-plus"></i> CREATE COMMUNITY</a>
+</div>
+
+<!-- 3. MAIN HEADER -->
+<header class="main-header">
+    <div class="header-left">
+        <a href="#" onclick="selectSub('home'); return false;" class="site-logo">
+            <span class="site-logo-icon"><i class="fa-solid fa-fire-flame-curved"></i></span>
+            <span class="site-title gradient-text">BetterForums</span>
+        </a>
+        <div class="sub-nav-tabs">
+            <button class="nav-tab active" id="tab-btn-feed" onclick="switchMainTab('feed')"><i class="fa-solid fa-comments"></i> Discussions</button>
+            <button class="nav-tab" id="tab-btn-leaderboard" onclick="switchMainTab('leaderboard')"><i class="fa-solid fa-trophy"></i> Leaderboard</button>
+            <button class="nav-tab" id="tab-btn-users" onclick="switchMainTab('users')"><i class="fa-solid fa-users"></i> Users</button>
+        </div>
+    </div>
+
+    <div style="display:flex; align-items:flex-end; gap:8px;">
+        <!-- Advanced Server Button -->
+        <button class="server-status-btn" onclick="openModal('server-modal')">
+            <span class="ping-dot" id="server-dot"></span>
+            <span id="server-ping-lbl" style="font-family:monospace; font-weight:bold;">Server: --ms</span>
+            <i class="fa-solid fa-sliders" style="font-size:10px; color:#64748b;"></i>
+        </button>
+
+        <!-- User Controls -->
+        <div class="header-user-bar" id="header-user-box">
+            <!-- Dynamic auth buttons or profile -->
+        </div>
+    </div>
+</header>
+
+<!-- 4. ANNOUNCEMENT BANNER -->
+<div id="announcement-banner" class="announcement-banner" style="display:none;">
+    <div style="display:flex; align-items:center; gap:8px;">
+        <i class="fa-solid fa-bullhorn"></i>
+        <span id="announcement-text">Community announcement banner</span>
+    </div>
+    <button onclick="document.getElementById('announcement-banner').style.display='none'" style="background:none; border:none; color:#fde047; cursor:pointer; font-size:14px;">&times;</button>
+</div>
+
+<!-- 5. MAIN PAGE WRAPPER -->
+<div class="page-wrapper">
+    <!-- Main Content Area -->
+    <main class="main-content" id="main-container">
+        <!-- Feed View -->
+        <div id="view-feed">
+            <div class="feed-filter-bar">
+                <div class="sort-pills">
+                    <button class="sort-pill active" id="sort-hot" onclick="changeSort('hot')"><i class="fa-solid fa-fire"></i> Hot</button>
+                    <button class="sort-pill" id="sort-new" onclick="changeSort('new')"><i class="fa-solid fa-certificate"></i> New</button>
+                    <button class="sort-pill" id="sort-top" onclick="changeSort('top')"><i class="fa-solid fa-chart-simple"></i> Top</button>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span id="active-feed-name" style="font-weight:bold; color:#cbd5e1; font-size:11px;">Viewing Home Feed</span>
+                    <input type="text" id="feed-search-inp" placeholder="Search posts..." oninput="handleSearch(this.value)" style="background:#0f172a; border:1px solid #1e293b; border-radius:4px; padding:4px 8px; color:#f8fafc; font-size:11px; outline:none;">
+                </div>
+            </div>
+
+            <!-- Posts List -->
+            <div id="posts-list">
+                <p style="text-align:center; color:#64748b; padding:40px 0;"><i class="fa-solid fa-spinner fa-spin" style="font-size:20px; color:#38bdf8;"></i><br><br>Loading posts...</p>
+            </div>
+        </div>
+
+        <!-- Single Post Detail View (Hidden by default) -->
+        <div id="view-post" style="display:none;">
+            <div style="margin-bottom:12px;">
+                <button onclick="backToFeed()" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; border-radius:6px; padding:5px 12px; font-size:11px; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-arrow-left"></i> Back to Feed</button>
+            </div>
+            <div id="post-detail-container">
+                <!-- Injected post -->
+            </div>
+
+            <!-- Comment Input Box -->
+            <div style="background:#0f172a; border:1px solid #1e293b; border-radius:8px; padding:12px; margin-top:16px;">
+                <div style="font-weight:bold; font-size:12px; color:#cbd5e1; margin-bottom:8px;">Leave a Comment</div>
+                <div style="display:flex; gap:4px; margin-bottom:6px;">
+                    <button onclick="insertCommentMd('**', '**')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:2px 6px; border-radius:3px; font-size:10px; cursor:pointer;"><b>B</b></button>
+                    <button onclick="insertCommentMd('*', '*')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:2px 6px; border-radius:3px; font-size:10px; cursor:pointer;"><i>I</i></button>
+                    <button onclick="insertCommentMd('2X ', '')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:2px 6px; border-radius:3px; font-size:10px; cursor:pointer;">2X</button>
+                    <button onclick="insertCommentMd('> ', '')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:2px 6px; border-radius:3px; font-size:10px; cursor:pointer;">Quote</button>
+                    <button onclick="insertCommentMd('`', '`')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:2px 6px; border-radius:3px; font-size:10px; cursor:pointer;">Code</button>
+                    <button onclick="insertCommentMd('![alt](', ')')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:2px 6px; border-radius:3px; font-size:10px; cursor:pointer;">Image</button>
+                </div>
+                <textarea id="comment-body" rows="3" placeholder="What are your thoughts?" style="width:100%; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:8px; color:#f8fafc; font-size:12px; outline:none; resize:vertical;"></textarea>
+                <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+                    <button onclick="submitComment()" style="background:#2563eb; color:#ffffff; border:none; border-radius:6px; padding:6px 16px; font-weight:bold; font-size:11px; cursor:pointer;">Comment</button>
+                </div>
+            </div>
+
+            <!-- Comments Tree -->
+            <div id="comments-tree" style="margin-top:16px;">
+                <!-- Comments list -->
+            </div>
+        </div>
+
+        <!-- Leaderboard View -->
+        <div id="view-leaderboard" style="display:none;">
+            <h2 style="font-size:16px; font-weight:bold; margin-bottom:12px; color:#f8fafc;"><i class="fa-solid fa-trophy" style="color:#fbbf24; margin-right:6px;"></i> Community Karma Leaderboard</h2>
+            <div id="leaderboard-table" style="background:#0f172a; border:1px solid #1e293b; border-radius:8px; overflow:hidden;">
+                <p style="text-align:center; color:#64748b; padding:20px;">Loading leaderboard...</p>
+            </div>
+        </div>
+
+        <!-- Users Directory View -->
+        <div id="view-users" style="display:none;">
+            <h2 style="font-size:16px; font-weight:bold; margin-bottom:12px; color:#f8fafc;"><i class="fa-solid fa-users" style="color:#38bdf8; margin-right:6px;"></i> Registered Members</h2>
+            <div id="users-directory-list" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px;">
+                <p style="text-align:center; color:#64748b; padding:20px; grid-column:1/-1;">Loading users...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <!-- Community Details Box -->
+        <div class="sidebar-box">
+            <div class="sidebar-title">
+                <span id="sb-title">r/home</span>
+                <span style="font-size:10px; color:#38bdf8; font-weight:normal;" id="sb-members">Public Community</span>
+            </div>
+            <p id="sb-desc" style="color:#94a3b8; margin-bottom:12px; line-height:1.5;">Welcome to BetterForums! The front page of discussions, news, gaming, and technology.</p>
+            <button onclick="openModal('create-post-modal')" style="width:100%; background:#2563eb; color:#ffffff; border:none; border-radius:6px; padding:8px 0; font-weight:bold; font-size:12px; cursor:pointer; margin-bottom:8px; box-shadow:0 2px 10px rgba(37,99,235,0.3);"><i class="fa-solid fa-plus"></i> Create Post</button>
+            <button onclick="openModal('create-sub-modal')" style="width:100%; background:#1e293b; border:1px solid #334155; color:#cbd5e1; border-radius:6px; padding:7px 0; font-weight:600; font-size:11px; cursor:pointer;"><i class="fa-solid fa-layer-group"></i> Create Community</button>
+        </div>
+
+        <!-- Top Communities Box -->
+        <div class="sidebar-box">
+            <div class="sidebar-title">Top Communities</div>
+            <div id="top-subs-list" style="display:flex; flex-direction:column; gap:6px;">
+                <!-- Subbetters injected -->
+            </div>
+        </div>
+
+        <!-- Forum Guidelines -->
+        <div class="sidebar-box">
+            <div class="sidebar-title">BetterForums Rules</div>
+            <ol style="padding-left:18px; color:#94a3b8; line-height:1.6; font-size:11px;">
+                <li>Be respectful and civil to others.</li>
+                <li>Post authentic content to appropriate subbetters.</li>
+                <li>No spam or unauthorized bot interactions.</li>
+                <li>Markdown syntax supported: **bold**, *italic*, 2X text, images.</li>
+            </ol>
+        </div>
+
+        <!-- Footer -->
+        <div style="font-size:10px; color:#64748b; padding:0 4px; line-height:1.5;">
+            <div>&copy; BetterForums Standalone Client Port.</div>
+            <div>Server Hits: <strong id="site-hits-val" style="color:#94a3b8;">--</strong></div>
+            <div style="margin-top:4px;">
+                <a href="../standalone-betterchat/index.html" style="color:#38bdf8;"><i class="fa-solid fa-comments"></i> Open BetterChat Port</a>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<!-- ════ MODALS ═══════════════════════════════════════════════════════════════ -->
+
+<!-- 1. ADVANCED SERVER MODAL -->
+<div id="server-modal" class="modal-bg">
+    <div class="modal-box">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; border-bottom:1px solid #1e293b; padding-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); border-radius:6px; color:#34d399; font-size:13px;">
+                    <i class="fa-solid fa-server"></i>
+                </span>
+                <div>
+                    <h3 style="font-size:14px; font-weight:bold; color:#f8fafc; margin:0;">Advanced Server Connection</h3>
+                    <span style="font-size:10px; color:#94a3b8;">Remote API backend configuration & diagnostics</span>
+                </div>
+            </div>
+            <button onclick="closeModal('server-modal')" style="background:none; border:none; color:#64748b; font-size:20px; cursor:pointer;">&times;</button>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+            <div>
+                <label style="display:block; font-size:10px; font-weight:bold; text-transform:uppercase; color:#94a3b8; margin-bottom:4px;">Backend Server API Base URL</label>
+                <input type="text" id="cfg-server-url" placeholder="e.g. http://localhost:3000" style="width:100%; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:7px 10px; color:#f8fafc; font-size:12px; font-family:monospace; outline:none;">
+                <span style="font-size:10px; color:#64748b; margin-top:2px; display:block;">Target API router at <code style="color:#38bdf8;">/BetterForums/api.php</code></span>
+            </div>
+
+            <div>
+                <label style="display:block; font-size:10px; font-weight:bold; text-transform:uppercase; color:#94a3b8; margin-bottom:6px;">Quick Presets</label>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button onclick="setServerPreset('origin')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; border-radius:4px; padding:5px 10px; font-size:11px; cursor:pointer;">Current Origin</button>
+                    <button onclick="setServerPreset('localhost')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; border-radius:4px; padding:5px 10px; font-size:11px; cursor:pointer;">Localhost:3000</button>
+                    <button onclick="setServerPreset('relative')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; border-radius:4px; padding:5px 10px; font-size:11px; cursor:pointer;">Relative (..)</button>
+                </div>
+            </div>
+
+            <!-- Diagnostics -->
+            <div style="background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:10px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <span style="font-weight:bold; font-size:11px; color:#cbd5e1;">Live Health Diagnostics</span>
+                    <button onclick="pingServerTest()" style="background:none; border:none; color:#38bdf8; font-size:11px; cursor:pointer;"><i class="fa-solid fa-rotate"></i> Ping Test</button>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:11px;">
+                    <div style="background:#0f172a; padding:6px; border-radius:4px; border:1px solid #1e293b;">
+                        <span style="color:#64748b; font-size:9px; display:block;">LATENCY</span>
+                        <strong id="diag-latency" style="color:#34d399; font-family:monospace;">-- ms</strong>
+                    </div>
+                    <div style="background:#0f172a; padding:6px; border-radius:4px; border:1px solid #1e293b;">
+                        <span style="color:#64748b; font-size:9px; display:block;">STATUS</span>
+                        <strong id="diag-status" style="color:#cbd5e1;">Checking...</strong>
+                    </div>
+                    <div style="background:#0f172a; padding:6px; border-radius:4px; border:1px solid #1e293b;">
+                        <span style="color:#64748b; font-size:9px; display:block;">HIT COUNTER</span>
+                        <strong id="diag-hits" style="color:#cbd5e1; font-family:monospace;">--</strong>
+                    </div>
+                    <div style="background:#0f172a; padding:6px; border-radius:4px; border:1px solid #1e293b;">
+                        <span style="color:#64748b; font-size:9px; display:block;">DATABASE</span>
+                        <strong id="diag-db" style="color:#34d399;">Connected</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
+                <button onclick="closeModal('server-modal')" style="background:#1e293b; color:#cbd5e1; border:1px solid #334155; border-radius:6px; padding:6px 14px; font-size:11px; cursor:pointer;">Cancel</button>
+                <button onclick="saveServerConfig()" style="background:#2563eb; color:#ffffff; border:none; border-radius:6px; padding:6px 16px; font-size:11px; font-weight:bold; cursor:pointer;">Save & Reconnect</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2. AUTH MODAL (LOGIN & REGISTER) -->
+<div id="auth-modal" class="modal-bg">
+    <div class="modal-box">
+        <div style="text-align:center; margin-bottom:16px;">
+            <div class="site-logo-icon" style="width:36px; height:36px; font-size:18px; margin:0 auto 8px auto;">
+                <i class="fa-solid fa-fire-flame-curved"></i>
+            </div>
+            <h3 style="font-size:16px; font-weight:bold; color:#f8fafc;" id="auth-title">Welcome to BetterForums</h3>
+            <span style="font-size:11px; color:#94a3b8;">Login or create an account to post, vote, and customize</span>
+        </div>
+
+        <div style="display:flex; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:3px; margin-bottom:14px;">
+            <button id="tab-login" onclick="switchAuthMode('login')" style="flex:1; background:#2563eb; color:#ffffff; border:none; border-radius:4px; padding:6px; font-size:11px; font-weight:bold; cursor:pointer;">Log In</button>
+            <button id="tab-register" onclick="switchAuthMode('register')" style="flex:1; background:transparent; color:#94a3b8; border:none; border-radius:4px; padding:6px; font-size:11px; font-weight:bold; cursor:pointer;">Register</button>
+        </div>
+
+        <form onsubmit="handleAuthSubmit(event)" style="display:flex; flex-direction:column; gap:10px;">
+            <div>
+                <label style="display:block; font-size:10px; font-weight:bold; text-transform:uppercase; color:#94a3b8; margin-bottom:4px;">Username</label>
+                <input type="text" id="auth-username" required placeholder="Choose a username" style="width:100%; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:7px 10px; color:#f8fafc; font-size:12px; outline:none;">
+            </div>
+            <div>
+                <label style="display:block; font-size:10px; font-weight:bold; text-transform:uppercase; color:#94a3b8; margin-bottom:4px;">Password</label>
+                <input type="password" id="auth-password" required placeholder="Enter password" style="width:100%; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:7px 10px; color:#f8fafc; font-size:12px; outline:none;">
+            </div>
+
+            <div id="auth-error" style="display:none; color:#f87171; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); border-radius:6px; padding:8px; font-size:11px;"></div>
+
+            <button type="submit" id="auth-submit-btn" style="background:#2563eb; color:#ffffff; border:none; border-radius:6px; padding:8px 0; font-size:12px; font-weight:bold; cursor:pointer; margin-top:4px;">Log In</button>
+
+            <div style="text-align:center; margin-top:6px;">
+                <button type="button" onclick="closeModal('auth-modal')" style="background:none; border:none; color:#64748b; font-size:11px; cursor:pointer;">Continue Browsing as Guest</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 3. CREATE POST MODAL -->
+<div id="create-post-modal" class="modal-bg">
+    <div class="modal-box wide">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; border-bottom:1px solid #1e293b; padding-bottom:10px;">
+            <h3 style="font-size:14px; font-weight:bold; color:#f8fafc;"><i class="fa-solid fa-pen-to-square" style="color:#38bdf8; margin-right:6px;"></i> Create a Post</h3>
+            <button onclick="closeModal('create-post-modal')" style="background:none; border:none; color:#64748b; font-size:20px; cursor:pointer;">&times;</button>
+        </div>
+
+        <form onsubmit="handleCreatePost(event)" style="display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label style="display:block; font-size:10px; font-weight:bold; text-transform:uppercase; color:#94a3b8; margin-bottom:4px;">Community</label>
+                    <select id="post-sub-select" style="width:100%; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:7px 10px; color:#f8fafc; font-size:12px; outline:none;">
+                        <!-- Sub options -->
+                    </select>
+                </div>
+                <div style="width:140px;">
+                    <label style="display:block; font-size:10px; font-weight:bold; text-transform:uppercase; color:#94a3b8; margin-bottom:4px;">Flair (Optional)</label>
+                    <select id="post-flair-select" style="width:100%; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:7px 10px; color:#f8fafc; font-size:12px; outline:none;">
+                        <option value="">No Flair</option>
+                        <option value="Discussion">Discussion</option>
+                        <option value="News">News</option>
+                        <option value="Question">Question</option>
+                        <option value="Showcase">Showcase</option>
+                        <option value="Meme">Meme</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label style="display:block; font-size:10px; font-weight:bold; text-transform:uppercase; color:#94a3b8; margin-bottom:4px;">Title</label>
+                <input type="text" id="post-title-inp" required placeholder="Title of your post..." style="width:100%; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:7px 10px; color:#f8fafc; font-size:13px; font-weight:600; outline:none;">
+            </div>
+
+            <!-- Toolbar -->
+            <div>
+                <div style="display:flex; gap:4px; margin-bottom:6px; background:#090d16; padding:4px; border-radius:6px; border:1px solid #1e293b;">
+                    <button type="button" onclick="insertPostMd('**', '**')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:2px 8px; border-radius:3px; font-size:11px; cursor:pointer;"><b>B</b></button>
+                    <button type="button" onclick="insertPostMd('*', '*')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:2px 8px; border-radius:3px; font-size:11px; cursor:pointer;"><i>I</i></button>
+                    <button type="button" onclick="insertPostMd('2X ', '')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:2px 8px; border-radius:3px; font-size:11px; cursor:pointer;">2X</button>
+                    <button type="button" onclick="insertPostMd('# ', '')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:2px 8px; border-radius:3px; font-size:11px; cursor:pointer;">H1</button>
+                    <button type="button" onclick="insertPostMd('> ', '')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:2px 8px; border-radius:3px; font-size:11px; cursor:pointer;">Quote</button>
+                    <button type="button" onclick="insertPostMd('`', '`')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:2px 8px; border-radius:3px; font-size:11px; cursor:pointer;">Code</button>
+                    <button type="button" onclick="insertPostMd('![Image Description](', ')')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; padding:2px 8px; border-radius:3px; font-size:11px; cursor:pointer;"><i class="fa-solid fa-image"></i> Image MD</button>
+                </div>
+                <textarea id="post-body-inp" rows="7" placeholder="Text (supports Markdown, 2X headers, and images)..." style="width:100%; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:10px; color:#f8fafc; font-size:12px; outline:none; resize:vertical; line-height:1.5;"></textarea>
+            </div>
+
+            <div>
+                <label style="display:block; font-size:10px; font-weight:bold; text-transform:uppercase; color:#94a3b8; margin-bottom:4px;">Image URL (Optional)</label>
+                <input type="text" id="post-image-url" placeholder="https://example.com/image.png" style="width:100%; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:7px 10px; color:#f8fafc; font-size:11px; outline:none;">
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
+                <button type="button" onclick="closeModal('create-post-modal')" style="background:#1e293b; color:#cbd5e1; border:1px solid #334155; border-radius:6px; padding:7px 16px; font-size:12px; cursor:pointer;">Cancel</button>
+                <button type="submit" style="background:#2563eb; color:#ffffff; border:none; border-radius:6px; padding:7px 20px; font-size:12px; font-weight:bold; cursor:pointer;">Publish Post</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 4. CREATE SUBBETTER MODAL -->
+<div id="create-sub-modal" class="modal-bg">
+    <div class="modal-box">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; border-bottom:1px solid #1e293b; padding-bottom:10px;">
+            <h3 style="font-size:14px; font-weight:bold; color:#f8fafc;">Create a Community</h3>
+            <button onclick="closeModal('create-sub-modal')" style="background:none; border:none; color:#64748b; font-size:20px; cursor:pointer;">&times;</button>
+        </div>
+        <form onsubmit="handleCreateSub(event)" style="display:flex; flex-direction:column; gap:10px;">
+            <div>
+                <label style="display:block; font-size:10px; font-weight:bold; text-transform:uppercase; color:#94a3b8; margin-bottom:4px;">Community Name (lowercase, no spaces)</label>
+                <div style="display:flex; align-items:center; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:0 8px;">
+                    <span style="color:#64748b; font-weight:bold;">r/</span>
+                    <input type="text" id="sub-name-inp" required placeholder="gaming" style="flex:1; background:transparent; border:none; padding:7px 4px; color:#f8fafc; font-size:12px; outline:none;">
+                </div>
+            </div>
+            <div>
+                <label style="display:block; font-size:10px; font-weight:bold; text-transform:uppercase; color:#94a3b8; margin-bottom:4px;">Description</label>
+                <textarea id="sub-desc-inp" rows="3" placeholder="What is this community about?" style="width:100%; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:8px; color:#f8fafc; font-size:12px; outline:none; resize:none;"></textarea>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:4px;">
+                <button type="submit" style="background:#2563eb; color:#ffffff; border:none; border-radius:6px; padding:7px 16px; font-size:12px; font-weight:bold; cursor:pointer;">Create Community</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 5. CONTROL PANEL MODAL (ALL 12 TABS FROM BETTERFORUMS) -->
+<div id="admin-modal" class="modal-bg">
+    <div class="modal-box wide">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; border-bottom:1px solid #1e293b; padding-bottom:10px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); border-radius:8px; color:#f87171; font-size:14px;">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </span>
+                <div>
+                    <h3 style="font-size:15px; font-weight:bold; color:#f8fafc; margin:0;">BetterForums Control Panel</h3>
+                    <span style="font-size:11px; color:#94a3b8;">System administration & moderation dashboard</span>
+                </div>
+            </div>
+            <button onclick="closeModal('admin-modal')" style="background:none; border:none; color:#64748b; font-size:20px; cursor:pointer;">&times;</button>
+        </div>
+
+        <div class="admin-tabs-nav">
+            <button class="admin-tab-btn active" onclick="adminTab(this, 'a-users')"><i class="fa-solid fa-users"></i> Users</button>
+            <button class="admin-tab-btn" onclick="adminTab(this, 'a-bans')"><i class="fa-solid fa-ban"></i> Bans</button>
+            <button class="admin-tab-btn" onclick="adminTab(this, 'a-announce')"><i class="fa-solid fa-bullhorn"></i> Announce</button>
+            <button class="admin-tab-btn" onclick="adminTab(this, 'a-maint')"><i class="fa-solid fa-wrench"></i> Maintenance</button>
+            <button class="admin-tab-btn" onclick="adminTab(this, 'a-comm-mgr')"><i class="fa-solid fa-list"></i> Communities</button>
+            <button class="admin-tab-btn" onclick="adminTab(this, 'a-stats')"><i class="fa-solid fa-chart-line"></i> Stats</button>
+            <button class="admin-tab-btn" onclick="adminTab(this, 'a-purge')"><i class="fa-solid fa-broom"></i> Purge</button>
+            <button class="admin-tab-btn" onclick="adminTab(this, 'a-sessions')"><i class="fa-solid fa-network-wired"></i> Sessions</button>
+        </div>
+
+        <!-- Section: Users -->
+        <div id="a-users" class="admin-section active">
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+                <input type="text" id="admin-user-search" placeholder="Search by username or ID..." style="flex:1; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:7px 12px; color:#f8fafc; font-size:12px; outline:none;" oninput="loadAdminUsers(this.value)">
+                <button onclick="loadAdminUsers(document.getElementById('admin-user-search').value)" style="background:#1e293b; color:#cbd5e1; border:1px solid #334155; border-radius:6px; padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer;"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            </div>
+            <div id="admin-users-list" style="max-height:360px; overflow-y:auto;">
+                <p style="text-align:center; color:#64748b; padding:20px;">Loading users...</p>
+            </div>
+        </div>
+
+        <!-- Section: Bans -->
+        <div id="a-bans" class="admin-section">
+            <div style="display:flex; gap:8px; margin-bottom:12px;">
+                <input type="text" id="admin-bans-search" placeholder="Search banned users..." style="flex:1; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:7px 12px; color:#f8fafc; font-size:12px; outline:none;" oninput="loadAdminBans(this.value)">
+                <button onclick="loadAdminBans(document.getElementById('admin-bans-search').value)" style="background:#1e293b; color:#cbd5e1; border:1px solid #334155; border-radius:6px; padding:7px 14px; font-size:12px; font-weight:600; cursor:pointer;"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            </div>
+            <div id="admin-bans-list" style="max-height:360px; overflow-y:auto;">
+                <p style="text-align:center; color:#64748b; padding:20px;">Loading bans...</p>
+            </div>
+        </div>
+
+        <!-- Section: Announce -->
+        <div id="a-announce" class="admin-section">
+            <div style="margin-bottom:8px; font-size:12px; color:#cbd5e1;">Broadcast Community Announcement:</div>
+            <textarea id="announce-input" placeholder="Type banner announcement message here..." style="width:100%; height:100px; background:#090d16; border:1px solid #1e293b; border-radius:8px; padding:10px; color:#f8fafc; font-size:12px; outline:none; resize:vertical; margin-bottom:10px;"></textarea>
+            <div style="display:flex; gap:8px;">
+                <button onclick="adminAnnounce()" style="background:#2563eb; color:#fff; border:none; border-radius:6px; padding:7px 16px; font-size:12px; font-weight:600; cursor:pointer;"><i class="fa-solid fa-paper-plane"></i> Dispatch to All</button>
+                <button onclick="document.getElementById('announce-input').value=''; adminAnnounce();" style="background:#1e293b; color:#cbd5e1; border:1px solid #334155; border-radius:6px; padding:7px 16px; font-size:12px; font-weight:600; cursor:pointer;">Clear Banner</button>
+            </div>
+        </div>
+
+        <!-- Section: Maintenance -->
+        <div id="a-maint" class="admin-section">
+            <div style="display:flex; align-items:center; justify-content:space-between; background:#090d16; border:1px solid #1e293b; border-radius:8px; padding:12px 16px; margin-bottom:14px;">
+                <div>
+                    <div style="font-weight:bold; color:#f8fafc; font-size:13px;">Maintenance Mode</div>
+                    <div style="font-size:11px; color:#94a3b8;">When active, only staff/admins can access the forum.</div>
+                </div>
+                <input type="checkbox" id="maint-switch" onchange="toggleMaintenance(this.checked)">
+            </div>
+            <div style="margin-bottom:8px; font-size:12px; color:#cbd5e1;">Custom Maintenance Message:</div>
+            <textarea id="maint-msg-input" placeholder="Message shown to visitors during maintenance..." style="width:100%; height:80px; background:#090d16; border:1px solid #1e293b; border-radius:8px; padding:10px; color:#f8fafc; font-size:12px; outline:none; resize:vertical; margin-bottom:10px;"></textarea>
+            <button onclick="saveMaintMsg()" style="background:#2563eb; color:#fff; border:none; border-radius:6px; padding:7px 16px; font-size:12px; font-weight:600; cursor:pointer;"><i class="fa-solid fa-floppy-disk"></i> Save Message</button>
+        </div>
+
+        <!-- Section: Communities -->
+        <div id="a-comm-mgr" class="admin-section">
+            <div id="admin-channels-list" style="max-height:300px; overflow-y:auto;">
+                <p style="text-align:center; color:#64748b; padding:16px;">Loading communities...</p>
+            </div>
+        </div>
+
+        <!-- Section: Stats -->
+        <div id="a-stats" class="admin-section">
+            <div id="admin-stats-grid" class="stat-grid-box">
+                <div class="stat-card"><div class="stat-card-num" id="st-users">-</div><div class="stat-card-lbl">Total Users</div></div>
+                <div class="stat-card"><div class="stat-card-num" id="st-posts">-</div><div class="stat-card-lbl">Total Posts</div></div>
+                <div class="stat-card"><div class="stat-card-num" id="st-comments">-</div><div class="stat-card-lbl">Comments</div></div>
+                <div class="stat-card"><div class="stat-card-num" id="st-channels">-</div><div class="stat-card-lbl">Communities</div></div>
+                <div class="stat-card"><div class="stat-card-num" id="st-bans">-</div><div class="stat-card-lbl">Banned Users</div></div>
+                <div class="stat-card"><div class="stat-card-num" id="st-hits">-</div><div class="stat-card-lbl">Site Hits</div></div>
+            </div>
+            <button onclick="loadAdminStats()" style="background:#1e293b; color:#cbd5e1; border:1px solid #334155; border-radius:6px; padding:6px 14px; font-size:11px; font-weight:600; cursor:pointer;"><i class="fa-solid fa-rotate"></i> Refresh Metrics</button>
+        </div>
+
+        <!-- Section: Purge -->
+        <div id="a-purge" class="admin-section">
+            <div style="background:#090d16; border:1px solid #1e293b; border-radius:8px; padding:14px;">
+                <div style="font-weight:bold; font-size:13px; color:#f8fafc; margin-bottom:6px;">Purge User Content by ID</div>
+                <p style="font-size:11px; color:#94a3b8; margin-bottom:12px;">Deletes all forum posts and comments authored by the specific user ID.</p>
+                <div style="display:flex; gap:8px;">
+                    <input type="number" id="purge-user-id" placeholder="Enter user ID (e.g. 42)" style="width:200px; background:#0f172a; border:1px solid #334155; border-radius:6px; padding:6px 10px; color:#f8fafc; font-size:12px; outline:none;">
+                    <button onclick="adminPurgeUser()" style="background:rgba(239,68,68,0.2); color:#f87171; border:1px solid rgba(239,68,68,0.4); border-radius:6px; padding:6px 16px; font-size:12px; font-weight:600; cursor:pointer;"><i class="fa-solid fa-broom"></i> Purge Content</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section: Sessions -->
+        <div id="a-sessions" class="admin-section">
+            <div id="admin-sessions-list" style="max-height:360px; overflow-y:auto;">
+                <p style="text-align:center; color:#64748b; padding:16px;">Loading recent sessions...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 6. USER ACTION MODAL -->
+<div id="user-action-modal" class="modal-bg">
+    <div class="modal-box">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; border-bottom:1px solid #1e293b; padding-bottom:8px;">
+            <h3 style="font-size:14px; font-weight:bold; color:#f8fafc;"><i class="fa-solid fa-user-shield" style="color:#38bdf8; margin-right:6px;"></i> User Action</h3>
+            <button onclick="closeModal('user-action-modal')" style="background:none; border:none; color:#64748b; font-size:20px; cursor:pointer;">&times;</button>
+        </div>
+        <div id="ua-info-box" style="margin-bottom:12px; padding:8px; background:#090d16; border-radius:6px; border:1px solid #1e293b;"></div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:11px;">
+            <button onclick="doUserAction('promote_mod')" style="background:#1e293b; color:#cbd5e1; border:1px solid #334155; padding:6px; border-radius:4px; cursor:pointer; text-align:left;"><i class="fa-solid fa-shield text-blue-400"></i> Promote Mod</button>
+            <button onclick="doUserAction('promote_admin')" style="background:#1e293b; color:#cbd5e1; border:1px solid #334155; padding:6px; border-radius:4px; cursor:pointer; text-align:left;"><i class="fa-solid fa-crown text-amber-400"></i> Promote Admin</button>
+            <button onclick="doUserAction('mute')" style="background:rgba(245,158,11,0.15); color:#fbbf24; border:1px solid rgba(245,158,11,0.3); padding:6px; border-radius:4px; cursor:pointer; text-align:left;"><i class="fa-solid fa-volume-xmark"></i> Mute / Unmute</button>
+            <button onclick="doUserAction('shadowban')" style="background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3); padding:6px; border-radius:4px; cursor:pointer; text-align:left;"><i class="fa-solid fa-user-slash"></i> Shadowban</button>
+            <button onclick="doUserAction('ban_user')" style="background:rgba(239,68,68,0.25); color:#fca5a5; border:1px solid rgba(239,68,68,0.4); padding:6px; border-radius:4px; cursor:pointer; text-align:left;"><i class="fa-solid fa-ban"></i> Ban User</button>
+            <button onclick="doUserAction('purge_user')" style="background:rgba(239,68,68,0.25); color:#fca5a5; border:1px solid rgba(239,68,68,0.4); padding:6px; border-radius:4px; cursor:pointer; text-align:left;"><i class="fa-solid fa-broom"></i> Purge Content</button>
+        </div>
+    </div>
+</div>
+
+<!-- Image Zoom Modal -->
+<div id="img-zoom" onclick="this.style.display='none'" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:3000; cursor:zoom-out; align-items:center; justify-content:center;">
+    <img id="img-zoom-src" src="" style="max-width:90vw; max-height:90vh; border-radius:8px; box-shadow:0 25px 50px rgba(0,0,0,0.8); object-contain;">
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<!-- ════ JAVASCRIPT ENGINE ═══════════════════════════════════════════════════ -->
+<script>
+let API_BASE = localStorage.getItem('BF_SERVER_URL') || window.location.origin;
+let AUTH_TOKEN = localStorage.getItem('BF_AUTH_TOKEN') || '';
+let CURRENT_USER = null;
+let currentSub = 'home';
+let currentSort = 'hot';
+let currentSearch = '';
+let activePostId = null;
+let allSubbetters = [];
+
+// Helper: Toast
+function toast(msg, type = 'info') {
+    const c = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = `toast-msg ${type}`;
+    el.innerHTML = msg;
+    c.appendChild(el);
+    setTimeout(() => {
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 200);
+    }, 3500);
+}
+
+function openModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('open');
+}
+function closeModal(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('open');
+}
+
+// API Dispatcher with Token Support
+async function api(action, params = {}, method = 'POST') {
+    let url = `${API_BASE}/BetterForums/api.php?action=${encodeURIComponent(action)}`;
+    const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+    if (AUTH_TOKEN) headers['Authorization'] = `Bearer ${AUTH_TOKEN}`;
+
+    let body = null;
+    if (params instanceof FormData) {
+        body = params;
+    } else if (method === 'POST') {
+        headers['Content-Type'] = 'application/json';
+        body = JSON.stringify(params);
+    } else {
+        const q = new URLSearchParams(params).toString();
+        if (q) url += `&${q}`;
+    }
+
+    try {
+        const res = await fetch(url, { method, headers, body });
+        const data = await res.json();
+        return data;
+    } catch (err) {
+        console.error(`BF API [${action}] error:`, err);
+        return { ok: false, error: err.message };
+    }
+}
+
+// Advanced Server Diagnostics & Config
+async function checkServerStatus() {
+    const t0 = performance.now();
+    const dot = document.getElementById('server-dot');
+    const lbl = document.getElementById('server-ping-lbl');
+
+    try {
+        const res = await api('ping', {}, 'GET');
+        const latency = Math.round(performance.now() - t0);
+        if (res && (res.ok || res.time || res.status === 'ok' || res.hit_counter !== undefined)) {
+            dot.className = 'ping-dot';
+            lbl.textContent = `Server: ${latency}ms`;
+            document.getElementById('diag-latency').textContent = `${latency} ms`;
+            document.getElementById('diag-status').textContent = 'Online & Synced';
+            if (res.hit_counter !== undefined) {
+                document.getElementById('site-hits-val').textContent = res.hit_counter;
+                document.getElementById('diag-hits').textContent = res.hit_counter;
+            }
+            return true;
+        } else {
+            throw new Error(res.error || 'Server error');
+        }
+    } catch (e) {
+        dot.className = 'ping-dot offline';
+        lbl.textContent = 'Server: Offline';
+        document.getElementById('diag-status').textContent = 'Disconnected';
+        document.getElementById('diag-latency').textContent = 'Timeout';
+        return false;
+    }
+}
+
+async function pingServerTest() {
+    document.getElementById('diag-status').textContent = 'Testing...';
+    await checkServerStatus();
+    toast('Diagnostics ping finished.', 'success');
+}
+
+function setServerPreset(t) {
+    const inp = document.getElementById('cfg-server-url');
+    if (t === 'origin') inp.value = window.location.origin;
+    else if (t === 'localhost') inp.value = 'http://localhost:3000';
+    else if (t === 'relative') inp.value = '..';
+}
+
+function saveServerConfig() {
+    let v = document.getElementById('cfg-server-url').value.trim();
+    if (v.endsWith('/')) v = v.slice(0, -1);
+    API_BASE = v || window.location.origin;
+    localStorage.setItem('BF_SERVER_URL', API_BASE);
+    closeModal('server-modal');
+    toast('Server endpoint saved. Refreshing...', 'success');
+    checkServerStatus();
+    bootApp();
+}
+
+// Authentication
+async function checkAuth() {
+    const res = await api('auth_check', {}, 'GET');
+    if (res && res.ok && res.user) {
+        CURRENT_USER = res.user;
+    } else {
+        CURRENT_USER = null;
+    }
+    renderUserBar();
+}
+
+function renderUserBar() {
+    const box = document.getElementById('header-user-box');
+    if (CURRENT_USER) {
+        const isStaff = CURRENT_USER.is_admin || CURRENT_USER.is_mod || CURRENT_USER.role === 'ADMIN' || CURRENT_USER.role === 'OWNER';
+        const staffBtn = isStaff ? `<button onclick="openAdminModal()" style="background:rgba(239,68,68,0.2); color:#f87171; border:1px solid rgba(239,68,68,0.3); border-radius:4px; padding:2px 6px; font-size:10px; font-weight:bold; cursor:pointer;"><i class="fa-solid fa-shield"></i> Staff</button>` : '';
+
+        box.innerHTML = `
+            <span style="font-weight:bold; color:${CURRENT_USER.name_color || '#38bdf8'};"><i class="fa-solid fa-user"></i> u/${CURRENT_USER.username}</span>
+            <span class="karma-badge"><i class="fa-solid fa-star" style="color:#fbbf24;"></i> ${CURRENT_USER.karma || 1}</span>
+            ${staffBtn}
+            <button onclick="logout()" style="background:none; border:none; color:#94a3b8; cursor:pointer; font-size:11px;" title="Logout"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+        `;
+    } else {
+        box.innerHTML = `
+            <button onclick="openModal('auth-modal')" style="background:#2563eb; color:#ffffff; border:none; border-radius:4px; padding:3px 10px; font-size:11px; font-weight:bold; cursor:pointer;">Log In / Register</button>
+        `;
+    }
+}
+
+let authMode = 'login';
+function switchAuthMode(m) {
+    authMode = m;
+    document.getElementById('tab-login').style.background = m === 'login' ? '#2563eb' : 'transparent';
+    document.getElementById('tab-login').style.color = m === 'login' ? '#ffffff' : '#94a3b8';
+    document.getElementById('tab-register').style.background = m === 'register' ? '#2563eb' : 'transparent';
+    document.getElementById('tab-register').style.color = m === 'register' ? '#ffffff' : '#94a3b8';
+    document.getElementById('auth-submit-btn').textContent = m === 'login' ? 'Log In' : 'Create Account';
+    document.getElementById('auth-error').style.display = 'none';
+}
+
+async function handleAuthSubmit(e) {
+    e.preventDefault();
+    const u = document.getElementById('auth-username').value.trim();
+    const p = document.getElementById('auth-password').value;
+    const err = document.getElementById('auth-error');
+
+    const res = await api(authMode, { username: u, password: p });
+    if (res && res.ok) {
+        if (res.token) {
+            AUTH_TOKEN = res.token;
+            localStorage.setItem('BF_AUTH_TOKEN', AUTH_TOKEN);
+        }
+        CURRENT_USER = res.user;
+        closeModal('auth-modal');
+        toast(`Welcome back, u/${CURRENT_USER.username}!`, 'success');
+        renderUserBar();
+        loadFeed();
+    } else {
+        err.textContent = res.error || 'Authentication error';
+        err.style.display = 'block';
+    }
+}
+
+function logout() {
+    AUTH_TOKEN = '';
+    localStorage.removeItem('BF_AUTH_TOKEN');
+    CURRENT_USER = null;
+    renderUserBar();
+    toast('Logged out successfully.', 'info');
+    loadFeed();
+}
+
+// Subbetters navigation
+async function loadSubbetters() {
+    const res = await api('get_subbetters', {}, 'GET');
+    if (res && res.ok && res.subbetters) {
+        allSubbetters = res.subbetters;
+        const topList = document.getElementById('top-subs-list');
+        topList.innerHTML = allSubbetters.slice(0, 8).map(s => `
+            <a href="#" onclick="selectSub('${s.name}'); return false;" style="display:flex; justify-content:space-between; color:#cbd5e1; padding:3px 0;">
+                <span>r/${s.name}</span>
+                <span style="color:#64748b; font-size:10px;">${s.post_count || 0} posts</span>
+            </a>
+        `).join('');
+
+        const postSubSel = document.getElementById('post-sub-select');
+        postSubSel.innerHTML = allSubbetters.map(s => `<option value="${s.id}">r/${s.name}</option>`).join('');
+    }
+}
+
+function selectSub(sub) {
+    currentSub = sub;
+    document.querySelectorAll('.sr-header-bar a').forEach(a => a.classList.remove('active'));
+    const el = document.getElementById(`sr-${sub}`);
+    if (el) el.classList.add('active');
+
+    const disp = sub === 'home' ? 'Home Feed' : `r/${sub}`;
+    document.getElementById('active-feed-name').textContent = `Viewing ${disp}`;
+    document.getElementById('sb-title').textContent = sub === 'home' ? 'Home' : `r/${sub}`;
+    backToFeed();
+    loadFeed();
+}
+
+// Markdown Formatter (Strict clean replacement for ![alt](url) without leaving bracket text!)
+function formatMarkdown(text) {
+    if (!text) return '';
+    let s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    // Handle Markdown Images: ![alt](url)
+    s = s.replace(/!\[(.*?)\]\((https?:\/\/[^\s)]+)\)/gi, (match, alt, url) => {
+        return `<div style="margin:8px 0;"><img src="${url}" alt="${alt}" referrerpolicy="no-referrer" class="md-image" style="max-height:380px; max-width:100%; border-radius:8px; border:1px solid #334155; object-contain; cursor:pointer;" onclick="zoomImage('${url}')" onerror="this.onerror=null;this.parentElement.innerHTML='<span style=\\'font-size:11px; color:#f87171; font-style:italic;\\'>[Image load error: ${alt}]</span>';"></div>`;
+    });
+
+    // Handle Standard Links: [text](url)
+    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#38bdf8;">$1</a>');
+
+    // Handle 2X Text
+    s = s.replace(/\b2X\s+(.*?)(?=\n|$)/gi, '<div class="text-2x">$1</div>');
+
+    // Headers
+    s = s.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    s = s.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+    s = s.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+    // Bold, Italic, Strikes
+    s = s.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    s = s.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    s = s.replace(/~~(.*?)~~/g, '<del style="color:#64748b;">$1</del>');
+
+    // Code & Quotes
+    s = s.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    s = s.replace(/^> (.*$)/gim, '<blockquote>$1</blockquote>');
+
+    s = s.replace(/\n/g, '<br>');
+    return s;
+}
+
+// Feed Loader
+async function loadFeed() {
+    const params = { sort: currentSort };
+    if (currentSub && currentSub !== 'home') params.sub = currentSub;
+    if (currentSearch) params.q = currentSearch;
+
+    const res = await api('get_feed', params, 'GET');
+    const container = document.getElementById('posts-list');
+
+    if (res && res.ok && res.posts) {
+        if (res.posts.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:40px; color:#64748b;">
+                    <i class="fa-regular fa-folder-open" style="font-size:32px; margin-bottom:10px;"></i>
+                    <p style="font-size:13px; font-weight:bold; color:#94a3b8;">No posts found in this feed.</p>
+                    <p style="font-size:11px; margin-top:4px;">Be the first to post something exciting!</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = res.posts.map(p => {
+            const timeAgo = formatTimeAgo(p.created_at);
+            const flair = p.flair ? `<span class="flair-badge">${p.flair}</span>` : '';
+            const pinnedClass = p.is_pinned ? 'pinned' : '';
+            const pinIcon = p.is_pinned ? '<i class="fa-solid fa-thumbtack" style="color:#eab308; margin-right:4px;"></i>' : '';
+            const upClass = p.user_vote === 1 ? 'upvoted' : '';
+            const downClass = p.user_vote === -1 ? 'downvoted' : '';
+
+            let imageHtml = '';
+            if (p.image_url) {
+                imageHtml = `<div style="margin-top:8px;"><img src="${p.image_url}" style="max-height:300px; max-width:100%; border-radius:6px; object-fit:contain; border:1px solid #1e293b; cursor:pointer;" onclick="zoomImage('${p.image_url}')" loading="lazy" referrerpolicy="no-referrer"></div>`;
+            }
+
+            return `
+                <div class="post-row ${pinnedClass}" id="post-card-${p.id}">
+                    <div class="vote-box">
+                        <button class="vote-btn ${upClass}" onclick="vote('post', ${p.id}, 1)"><i class="fa-solid fa-arrow-up"></i></button>
+                        <span class="vote-score" id="score-post-${p.id}">${p.score}</span>
+                        <button class="vote-btn ${downClass}" onclick="vote('post', ${p.id}, -1)"><i class="fa-solid fa-arrow-down"></i></button>
+                    </div>
+                    <div class="post-main">
+                        <div class="post-meta">
+                            ${pinIcon}
+                            <a href="#" onclick="selectSub('${p.sub_name}'); return false;" class="post-sub-link">r/${p.sub_name}</a>
+                            <span>&bull;</span>
+                            <span>Posted by <a href="#" onclick="openUserAction(${p.user_id}, '${p.username}'); return false;" class="post-author">u/${p.username}</a></span>
+                            <span>${timeAgo}</span>
+                        </div>
+                        <h3 class="post-title" onclick="openPostDetail(${p.id})">${flair}${p.title}</h3>
+                        <div class="post-snippet md-content">
+                            ${formatMarkdown(p.content.slice(0, 320))}${p.content.length > 320 ? '...' : ''}
+                        </div>
+                        ${imageHtml}
+                        <div class="post-actions">
+                            <button class="post-act-btn" onclick="openPostDetail(${p.id})"><i class="fa-regular fa-comment"></i> ${p.comment_count} Comments</button>
+                            <button class="post-act-btn" onclick="sharePost(${p.id})"><i class="fa-solid fa-share-nodes"></i> Share</button>
+                            <button class="post-act-btn" onclick="savePost(${p.id})"><i class="fa-regular fa-bookmark"></i> Save</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+}
+
+// Single Post Detail & Comments
+async function openPostDetail(pid) {
+    activePostId = pid;
+    document.getElementById('view-feed').style.display = 'none';
+    document.getElementById('view-leaderboard').style.display = 'none';
+    document.getElementById('view-users').style.display = 'none';
+    document.getElementById('view-post').style.display = 'block';
+
+    const res = await api('get_post', { id: pid }, 'GET');
+    const pBox = document.getElementById('post-detail-container');
+    const cBox = document.getElementById('comments-tree');
+
+    if (res && res.ok && res.post) {
+        const p = res.post;
+        const flair = p.flair ? `<span class="flair-badge">${p.flair}</span>` : '';
+        let img = p.image_url ? `<div style="margin:12px 0;"><img src="${p.image_url}" style="max-width:100%; border-radius:8px; border:1px solid #334155; cursor:pointer;" onclick="zoomImage('${p.image_url}')"></div>` : '';
+
+        pBox.innerHTML = `
+            <div style="background:#0f172a; border:1px solid #1e293b; border-radius:8px; padding:16px;">
+                <div class="post-meta" style="margin-bottom:8px;">
+                    <a href="#" onclick="selectSub('${p.sub_name}'); return false;" class="post-sub-link">r/${p.sub_name}</a>
+                    <span>&bull;</span>
+                    <span>Posted by <strong style="color:${p.name_color || '#38bdf8'};">u/${p.username}</strong></span>
+                    <span>${formatTimeAgo(p.created_at)}</span>
+                </div>
+                <h1 style="font-size:18px; font-weight:bold; color:#f8fafc; margin-bottom:12px; line-height:1.3;">${flair}${p.title}</h1>
+                <div class="md-content" style="color:#cbd5e1; font-size:13px; line-height:1.6;">
+                    ${formatMarkdown(p.content)}
+                </div>
+                ${img}
+            </div>
+        `;
+
+        if (res.comments && res.comments.length > 0) {
+            cBox.innerHTML = res.comments.map(c => `
+                <div class="comment-node">
+                    <div class="comment-box">
+                        <div class="post-meta" style="margin-bottom:4px;">
+                            <strong style="color:${c.name_color || '#38bdf8'};">u/${c.username}</strong>
+                            <span>&bull;</span>
+                            <span>${formatTimeAgo(c.created_at)}</span>
+                        </div>
+                        <div class="md-content" style="color:#cbd5e1; font-size:12px;">
+                            ${formatMarkdown(c.content)}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            cBox.innerHTML = '<p style="color:#64748b; font-style:italic; padding:12px 0;">No comments yet. Start the conversation!</p>';
+        }
+    }
+}
+
+function backToFeed() {
+    activePostId = null;
+    document.getElementById('view-post').style.display = 'none';
+    document.getElementById('view-feed').style.display = 'block';
+}
+
+async function submitComment() {
+    if (!CURRENT_USER) { openModal('auth-modal'); return; }
+    const text = document.getElementById('comment-body').value.trim();
+    if (!text) return;
+
+    const res = await api('submit_comment', { post_id: activePostId, content: text });
+    if (res && res.ok) {
+        document.getElementById('comment-body').value = '';
+        toast('Comment added!', 'success');
+        openPostDetail(activePostId);
+    } else {
+        toast(res.error || 'Failed to post comment', 'error');
+    }
+}
+
+// Post Creation
+async function handleCreatePost(e) {
+    e.preventDefault();
+    if (!CURRENT_USER) { openModal('auth-modal'); return; }
+
+    const sid = document.getElementById('post-sub-select').value;
+    const title = document.getElementById('post-title-inp').value.trim();
+    const content = document.getElementById('post-body-inp').value.trim();
+    const flair = document.getElementById('post-flair-select').value;
+    const img = document.getElementById('post-image-url').value.trim();
+
+    const res = await api('submit_post', {
+        subbetter_id: sid,
+        title: title,
+        content: content,
+        flair: flair,
+        image_url: img
+    });
+
+    if (res && res.ok) {
+        closeModal('create-post-modal');
+        document.getElementById('post-title-inp').value = '';
+        document.getElementById('post-body-inp').value = '';
+        toast('Post published successfully!', 'success');
+        loadFeed();
+    } else {
+        toast(res.error || 'Failed to submit post', 'error');
+    }
+}
+
+async function handleCreateSub(e) {
+    e.preventDefault();
+    if (!CURRENT_USER) { openModal('auth-modal'); return; }
+
+    const name = document.getElementById('sub-name-inp').value.trim();
+    const desc = document.getElementById('sub-desc-inp').value.trim();
+
+    const res = await api('create_sub', { name, description: desc });
+    if (res && res.ok) {
+        closeModal('create-sub-modal');
+        toast(`Community r/${name} created!`, 'success');
+        loadSubbetters();
+        selectSub(name);
+    } else {
+        toast(res.error || 'Could not create community', 'error');
+    }
+}
+
+// Voting & Interactions
+async function vote(type, id, val) {
+    if (!CURRENT_USER) { openModal('auth-modal'); return; }
+    const res = await api('vote', { type, target_id: id, val });
+    if (res && res.ok) {
+        const scoreEl = document.getElementById(`score-${type}-${id}`);
+        if (scoreEl) scoreEl.textContent = res.new_score;
+    }
+}
+
+function sharePost(pid) {
+    navigator.clipboard.writeText(window.location.href);
+    toast('Post link copied to clipboard!', 'info');
+}
+
+async function savePost(pid) {
+    if (!CURRENT_USER) { openModal('auth-modal'); return; }
+    const res = await api('save_post', { post_id: pid });
+    if (res && res.ok) toast('Post bookmarked in your saved list!', 'success');
+}
+
+// Markdown Toolbar Helpers
+function insertPostMd(before, after) {
+    const el = document.getElementById('post-body-inp');
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const sel = el.value.substring(start, end) || 'text';
+    el.value = el.value.substring(0, start) + before + sel + after + el.value.substring(end);
+    el.focus();
+}
+function insertCommentMd(before, after) {
+    const el = document.getElementById('comment-body');
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const sel = el.value.substring(start, end) || 'text';
+    el.value = el.value.substring(0, start) + before + sel + after + el.value.substring(end);
+    el.focus();
+}
+
+function zoomImage(url) {
+    const z = document.getElementById('img-zoom');
+    const img = document.getElementById('img-zoom-src');
+    img.src = url;
+    z.style.display = 'flex';
+}
+
+function changeSort(s) {
+    currentSort = s;
+    document.querySelectorAll('.sort-pill').forEach(p => p.classList.remove('active'));
+    const btn = document.getElementById(`sort-${s}`);
+    if (btn) btn.classList.add('active');
+    loadFeed();
+}
+
+function handleSearch(q) {
+    currentSearch = q.trim();
+    loadFeed();
+}
+
+function switchMainTab(t) {
+    document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById(`tab-btn-${t}`).classList.add('active');
+    document.getElementById('view-feed').style.display = t === 'feed' ? 'block' : 'none';
+    document.getElementById('view-post').style.display = 'none';
+    document.getElementById('view-leaderboard').style.display = t === 'leaderboard' ? 'block' : 'none';
+    document.getElementById('view-users').style.display = t === 'users' ? 'block' : 'none';
+
+    if (t === 'leaderboard') loadLeaderboard();
+    if (t === 'users') loadUsersDirectory();
+}
+
+async function loadLeaderboard() {
+    const res = await api('get_leaderboard', {}, 'GET');
+    const box = document.getElementById('leaderboard-table');
+    if (res && res.ok && res.leaderboard) {
+        box.innerHTML = res.leaderboard.map((u, i) => `
+            <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-bottom:1px solid #1e293b; font-size:12px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <span style="font-weight:bold; color:#64748b; width:20px;">#${i + 1}</span>
+                    <strong style="color:${u.name_color || '#38bdf8'};">u/${u.username}</strong>
+                    <span style="font-size:10px; color:#94a3b8;">${u.custom_badge || u.role}</span>
+                </div>
+                <div style="font-weight:bold; color:#fbbf24;"><i class="fa-solid fa-star"></i> ${u.karma || 0} karma</div>
+            </div>
+        `).join('');
+    }
+}
+
+async function loadUsersDirectory() {
+    const res = await api('get_users', {}, 'GET');
+    const box = document.getElementById('users-directory-list');
+    if (res && res.ok && res.users) {
+        box.innerHTML = res.users.map(u => `
+            <div style="background:#0f172a; border:1px solid #1e293b; border-radius:8px; padding:12px;">
+                <div style="font-weight:bold; color:${u.name_color || '#38bdf8'}; font-size:13px; margin-bottom:4px;">u/${u.username}</div>
+                <div style="font-size:10px; color:#94a3b8; margin-bottom:8px;">${u.role || 'Member'} &bull; ${u.karma || 0} karma</div>
+                <button onclick="openUserAction(${u.id}, '${u.username}')" style="background:#1e293b; border:1px solid #334155; color:#cbd5e1; border-radius:4px; padding:4px 8px; font-size:10px; cursor:pointer;">Actions</button>
+            </div>
+        `).join('');
+    }
+}
+
+// User Action Modal
+let targetUserId = null;
+let targetUsername = '';
+function openUserAction(uid, uname) {
+    targetUserId = uid;
+    targetUsername = uname;
+    document.getElementById('ua-info-box').innerHTML = `<strong>u/${uname}</strong> <span style="color:#64748b;">(#${uid})</span>`;
+    openModal('user-action-modal');
+}
+
+async function doUserAction(act) {
+    const res = await api('admin_api', { target_user_id: targetUserId, sub_action: act, act: 'admin_action' });
+    if (res && res.ok) {
+        toast(`Action ${act} executed successfully.`, 'success');
+        closeModal('user-action-modal');
+    } else {
+        toast(res.error || 'Action failed', 'error');
+    }
+}
+
+// Admin Panel Tabs & Handlers
+function openAdminModal() {
+    loadAdminUsers();
+    loadAdminStats();
+    openModal('admin-modal');
+}
+function adminTab(btn, secId) {
+    document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+    document.getElementById(secId).classList.add('active');
+}
+
+async function loadAdminUsers(q = '') {
+    const res = await api('admin_api', { act: 'get_users', q });
+    const box = document.getElementById('admin-users-list');
+    if (res && res.ok && res.users) {
+        box.innerHTML = res.users.map(u => `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#090d16; border:1px solid #1e293b; border-radius:6px; padding:8px; margin-bottom:6px; font-size:11px;">
+                <div>
+                    <strong style="color:#f8fafc;">u/${u.username}</strong>
+                    <span style="color:#64748b; margin-left:6px;">#${u.id} &bull; ${u.role}</span>
+                </div>
+                <button onclick="openUserAction(${u.id}, '${u.username}')" style="background:#1e293b; color:#38bdf8; border:1px solid #334155; border-radius:4px; padding:3px 8px; font-size:10px; cursor:pointer;">Manage</button>
+            </div>
+        `).join('');
+    }
+}
+
+async function loadAdminStats() {
+    const res = await api('admin_api', { act: 'get_stats' });
+    if (res && res.ok && res.stats) {
+        document.getElementById('st-users').textContent = res.stats.total_users;
+        document.getElementById('st-posts').textContent = res.stats.total_posts;
+        document.getElementById('st-comments').textContent = res.stats.total_comments;
+        document.getElementById('st-channels').textContent = res.stats.total_channels;
+        document.getElementById('st-bans').textContent = res.stats.total_bans;
+        document.getElementById('st-hits').textContent = res.stats.hit_counter;
+    }
+}
+
+async function adminAnnounce() {
+    const msg = document.getElementById('announce-input').value.trim();
+    const res = await api('admin_api', { act: 'admin_announce', message: msg });
+    if (res && res.ok) {
+        toast('Announcement broadcasted!', 'success');
+        if (msg) {
+            document.getElementById('announcement-text').textContent = msg;
+            document.getElementById('announcement-banner').style.display = 'flex';
+        } else {
+            document.getElementById('announcement-banner').style.display = 'none';
+        }
+    }
+}
+
+function formatTimeAgo(ts) {
+    if (!ts) return 'recently';
+    const d = new Date(ts);
+    const diff = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    return `${Math.floor(diff/86400)}d ago`;
+}
+
+// App Boot Sequence
+async function bootApp() {
+    document.getElementById('cfg-server-url').value = API_BASE;
+    await checkServerStatus();
+    await checkAuth();
+    await loadSubbetters();
+    // Default to HOME feed instead of automatically opening all posts
+    selectSub('home');
+}
+
+document.addEventListener('DOMContentLoaded', bootApp);
+</script>
+</body>
+</html>
